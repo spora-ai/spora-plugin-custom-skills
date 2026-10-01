@@ -1,4 +1,5 @@
 includes:
+    - vendor/larastan/larastan/extension.neon
     - vendor/phpstan/phpstan-mockery/extension.neon
 
 parameters:
@@ -9,4 +10,13 @@ parameters:
     excludePaths:
         - vendor
     bootstrapFiles:
-        - vendor/autoload.php
+        - phpstan-bootstrap.php
+    ignoreErrors:
+        # Pest resolves `it()`, `beforeEach()` and `expect()` through `__call`,
+        # and exposes test-local state as dynamic properties. Both are
+        # load-bearing features of the framework, not defects.
+        - '#Call to an undefined method Pest\\PendingCalls\\TestCall::#'
+        - '#Access to an undefined property Pest\\PendingCalls\\TestCall::#'
+        # Pest's fluent API mutates the expectation in place, so `->not` and
+        # friends are dynamic properties on a generic `Expectation<T>`.
+        - '#Access to an undefined property Pest\\Mixins\\Expectation<#'
