@@ -170,8 +170,20 @@ jobs:
   sonar:
     name: SonarQube
     needs: [coverage]
+    # `always()` so the scanner still runs when the coverage job fails, giving
+    # SonarCloud a "previous version" baseline for the next push to main.
+    # Fork PRs are skipped — secrets aren't available there and the job would
+    # fail noisily.
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository)
+      )
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ready-for-sonar')
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout plugin
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -179,6 +191,9 @@ jobs:
           fetch-depth: 0
 
       - name: Download coverage
+        # Absent when the coverage job fails. The scanner still runs, without
+        # coverage data.
+        continue-on-error: true
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: coverage-clover
