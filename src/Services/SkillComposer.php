@@ -55,6 +55,13 @@ final class SkillComposer
     {
         $yaml = Yaml::dump($this->frontmatter($skill), 4, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK);
 
+        // `DUMP_MULTI_LINE_LITERAL_BLOCK` leaves the dump without its final newline,
+        // which would glue the closing `---` onto the last content line and leave an
+        // entry file `SkillScanner` cannot parse.
+        if (!str_ends_with($yaml, "\n")) {
+            $yaml .= "\n";
+        }
+
         return "---\n{$yaml}---\n\n" . $skill->body;
     }
 
