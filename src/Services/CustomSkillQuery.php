@@ -25,15 +25,13 @@ final class CustomSkillQuery implements CustomSkillQueryInterface
             return [];
         }
 
-        /** @var list<CustomSkill> $rows */
-        $rows = CustomSkill::query()
+        /** @var list<CustomSkill> */
+        return array_values(CustomSkill::query()
             ->forPrincipal($principalId)
             ->with('files')
             ->orderBy('name')
             ->get()
-            ->all();
-
-        return $rows;
+            ->all());
     }
 
     public function findForPrincipal(string $name, int $principalId): ?CustomSkill
@@ -42,14 +40,12 @@ final class CustomSkillQuery implements CustomSkillQueryInterface
             return null;
         }
 
-        /** @var CustomSkill|null $row */
-        $row = CustomSkill::query()
+        /** @var CustomSkill|null */
+        return CustomSkill::query()
             ->forPrincipal($principalId)
             ->where('name', $name)
             ->with('files')
             ->first();
-
-        return $row;
     }
 
     /**
@@ -76,14 +72,11 @@ final class CustomSkillQuery implements CustomSkillQueryInterface
         }
 
         $file = $this->sidecarFor($skill, $path);
-        if ($file === null) {
-            return null;
-        }
 
-        // Checked from the stored byte count, before `content` is read: measuring a
+        // The cap reads the stored byte count, before `content` is loaded: measuring a
         // `longText` blob means materialising it, the cost the cap exists to avoid. The
         // caller re-asserts the cap on what comes back.
-        if ($file->bytes > SkillProviderInterface::MAX_FILE_BYTES) {
+        if ($file === null || $file->bytes > SkillProviderInterface::MAX_FILE_BYTES) {
             return null;
         }
 

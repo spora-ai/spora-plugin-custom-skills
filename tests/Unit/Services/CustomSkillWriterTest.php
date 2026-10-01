@@ -522,3 +522,38 @@ it('passes a frontmatter validation failure through with its errors', function (
     'uppercase letter'   => 'Invoice',
     'consecutive hyphen' => 'in--voice',
 ]);
+
+it('stringifies metadata scalars and refuses a nested one', function (): void {
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    $skill = makeSkill($writer, $principalId, 'alpha', [
+        'metadata' => ['on' => true, 'off' => false, 'count' => 3, 'ratio' => 1.5],
+    ]);
+
+    // The column is a JSON string map, so a bool has to become `true`/`false`
+    // rather than `1`/`""` as a bare cast would.
+    expect($skill->refresh()->metadata)->toBe([
+        'on' => 'true',
+        'off' => 'false',
+        'count' => '3',
+        'ratio' => '1.5',
+    ]);
+
+    $refusal = refusal(fn() => $writer->update('alpha', $principalId, $userId, [
+        'metadata' => ['nested' => ['no' => 'nested maps']],
+    ], CustomSkill::PROVENANCE_HUMAN));
+
+    expect($refusal->errorCode)->toBe('VALIDATION_ERROR')
+        ->and($refusal->getMessage())->toContain('metadata.nested');
+});
+
+it('reads an empty metadata object as unset', function (): void {
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    $skill = makeSkill($writer, $principalId, 'alpha', ['metadata' => '']);
+
+    expect($skill->refresh()->metadata)->toBeNull()
+        ->and(skillComposer()->frontmatter($skill->refresh()))->not->toHaveKey('metadata');
+});

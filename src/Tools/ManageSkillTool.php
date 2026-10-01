@@ -63,6 +63,8 @@ use Spora\Tools\ValueObjects\ToolResult;
 #[ToolParameter(name: 'files', type: 'object', description: 'Sidecar files as path => content. Replaces the entire existing set, so include the files that should survive. Not needed for a SKILL.md-only skill.', required: false)]
 final class ManageSkillTool extends AbstractTool
 {
+    private const NAME_REQUIRED = 'Error (VALIDATION_ERROR): name is required.';
+
     public function __construct(
         private readonly CustomSkillWriterInterface $writer,
         private readonly PrincipalResolver $principals,
@@ -123,7 +125,7 @@ final class ManageSkillTool extends AbstractTool
     private function create(int $principalId, ?int $userId, array $arguments, string $name): ToolResult
     {
         if ($name === '') {
-            return new ToolResult(false, 'Error (VALIDATION_ERROR): name is required.');
+            return new ToolResult(false, self::NAME_REQUIRED);
         }
 
         $skill = $this->writer->create(
@@ -144,7 +146,7 @@ final class ManageSkillTool extends AbstractTool
     private function update(int $principalId, ?int $userId, array $arguments, string $name): ToolResult
     {
         if ($name === '') {
-            return new ToolResult(false, 'Error (VALIDATION_ERROR): name is required.');
+            return new ToolResult(false, self::NAME_REQUIRED);
         }
 
         $skill = $this->writer->update(
@@ -161,7 +163,7 @@ final class ManageSkillTool extends AbstractTool
     private function delete(int $principalId, ?int $userId, string $name): ToolResult
     {
         if ($name === '') {
-            return new ToolResult(false, 'Error (VALIDATION_ERROR): name is required.');
+            return new ToolResult(false, self::NAME_REQUIRED);
         }
 
         $touched = $this->writer->delete($name, $principalId, $userId ?? 0);

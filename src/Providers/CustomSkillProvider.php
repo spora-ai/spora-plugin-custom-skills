@@ -133,19 +133,14 @@ final class CustomSkillProvider implements SkillProviderInterface
      */
     public static function isSafePath(string $path): bool
     {
-        if ($path === '' || str_starts_with($path, '/') || str_contains($path, '\\')) {
-            return false;
-        }
-        if (preg_match('/[\x00-\x1F\x7F]/', $path) === 1) {
-            return false;
-        }
+        $segments = explode('/', $path);
 
-        foreach (explode('/', $path) as $segment) {
-            if ($segment === '' || $segment === '.' || $segment === '..') {
-                return false;
-            }
-        }
-
-        return true;
+        return $path !== ''
+            && !str_starts_with($path, '/')
+            && !str_contains($path, '\\')
+            && preg_match('/[\x00-\x1F\x7F]/', $path) !== 1
+            && !in_array('', $segments, true)
+            && !in_array('.', $segments, true)
+            && !in_array('..', $segments, true);
     }
 }

@@ -247,24 +247,13 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
             $attributes['name'] = trim((string) $attributes['name']);
         }
         if (array_key_exists('description', $attributes)) {
-            $description = trim((string) $attributes['description']);
-            if (mb_strlen($description) > CustomSkillLimits::DESCRIPTION_LENGTH) {
-                throw CustomSkillException::descriptionTooLong(CustomSkillLimits::DESCRIPTION_LENGTH);
-            }
-            $attributes['description'] = $description;
+            $attributes['description'] = $this->normalisedDescription($attributes['description']);
         }
         if (array_key_exists('body', $attributes)) {
             $attributes['body'] = (string) $attributes['body'];
         }
         if (array_key_exists('metadata', $attributes)) {
-            $metadata = $attributes['metadata'];
-            if ($metadata === null || $metadata === '') {
-                $attributes['metadata'] = null;
-            } elseif (!is_array($metadata)) {
-                throw CustomSkillException::validation('metadata must be an object of string values.');
-            } else {
-                $attributes['metadata'] = self::stringMap($metadata, 'metadata');
-            }
+            $attributes['metadata'] = $this->normalisedMetadata($attributes['metadata']);
         }
         foreach (['license', 'compatibility', 'allowed_tools'] as $key) {
             if (array_key_exists($key, $attributes)) {
@@ -277,17 +266,55 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
+     * Trimmed, and bounded before it reaches the column.
+     *
+     * @throws CustomSkillException
+     */
+    private function normalisedDescription(mixed $raw): string
+    {
+        $description = trim((string) $raw);
+        if (mb_strlen($description) > CustomSkillLimits::DESCRIPTION_LENGTH) {
+            throw CustomSkillException::descriptionTooLong(CustomSkillLimits::DESCRIPTION_LENGTH);
+        }
+
+        return $description;
+    }
+
+    /**
+     * `null`, or a map of scalar values stringified. `''` reads as "unset": the column
+     * is nullable and an HTML form round-trip sends it empty.
+     *
+     * @return array<string, string>|null
+     * @throws CustomSkillException
+     */
+    private function normalisedMetadata(mixed $raw): ?array
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        if (!is_array($raw)) {
+            throw CustomSkillException::validation('metadata must be an object of string values.');
+        }
+
+        return $this->stringMap($raw, 'metadata');
+    }
+
+    /**
      * @param array<mixed> $raw
      * @return array<string, string>
      */
-    private static function stringMap(array $raw, string $field): array
+    private function stringMap(array $raw, string $field): array
     {
         $out = [];
         foreach ($raw as $key => $value) {
             if (!is_string($value) && !is_int($value) && !is_float($value) && !is_bool($value)) {
                 throw CustomSkillException::validation("{$field}.{$key} must be a scalar value.");
             }
-            $out[(string) $key] = is_bool($value) ? ($value ? 'true' : 'false') : (string) $value;
+            if (is_bool($value)) {
+                $out[(string) $key] = $value ? 'true' : 'false';
+                continue;
+            }
+            $out[(string) $key] = (string) $value;
         }
 
         return $out;

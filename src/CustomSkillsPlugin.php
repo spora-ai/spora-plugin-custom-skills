@@ -107,16 +107,17 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
     {
         $routes = $event->routes();
         $base = '/api/v1/custom-skills';
+        $one = $base . '/{name}';
 
         $routes->addRoute('GET', $base, [CustomSkillController::class, 'index'], self::AUTH);
         $routes->addRoute('POST', $base, [CustomSkillController::class, 'store'], self::AUTH);
-        $routes->addRoute('GET', $base . '/{name}', [CustomSkillController::class, 'show'], self::AUTH);
-        $routes->addRoute('PUT', $base . '/{name}', [CustomSkillController::class, 'update'], self::AUTH);
-        $routes->addRoute('DELETE', $base . '/{name}', [CustomSkillController::class, 'destroy'], self::AUTH);
-        $routes->addRoute('GET', $base . '/{name}/files', [CustomSkillController::class, 'files'], self::AUTH);
-        $routes->addRoute('GET', $base . '/{name}/files/{path}', [CustomSkillController::class, 'file'], self::AUTH);
-        $routes->addRoute('GET', $base . '/{name}/allowlist', [CustomSkillController::class, 'allowlist'], self::AUTH);
-        $routes->addRoute('POST', $base . '/{name}/restore', [CustomSkillController::class, 'restore'], self::AUTH);
+        $routes->addRoute('GET', $one, [CustomSkillController::class, 'show'], self::AUTH);
+        $routes->addRoute('PUT', $one, [CustomSkillController::class, 'update'], self::AUTH);
+        $routes->addRoute('DELETE', $one, [CustomSkillController::class, 'destroy'], self::AUTH);
+        $routes->addRoute('GET', $one . '/files', [CustomSkillController::class, 'files'], self::AUTH);
+        $routes->addRoute('GET', $one . '/files/{path}', [CustomSkillController::class, 'file'], self::AUTH);
+        $routes->addRoute('GET', $one . '/allowlist', [CustomSkillController::class, 'allowlist'], self::AUTH);
+        $routes->addRoute('POST', $one . '/restore', [CustomSkillController::class, 'restore'], self::AUTH);
     }
 
     /**
