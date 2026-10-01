@@ -158,7 +158,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Run Pest with coverage
-        run: XDEBUG_MODE=coverage ./vendor/bin/pest --coverage-clover=coverage.xml --parallel --processes=auto --max-batch-size=50
+        run: XDEBUG_MODE=coverage ./vendor/bin/pest --coverage-clover=coverage.xml --coverage-filter=src --parallel --processes=auto --max-batch-size=50
 
       - name: Upload coverage
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
