@@ -23,6 +23,13 @@ env:
   # is stable whichever branch the checkout is on. Once that core PR merges and
   # is tagged, this repository entry is replaced by the `vcs` entry the
   # other plugin repos use and this whole block goes away.
+  #
+  # `actions/checkout`'s `path:` is workspace-relative, so the core checkout
+  # lands *inside* this repo's workspace while the path repository is declared
+  # as `../spora-core` — a sibling, which is what local development has. Each
+  # job therefore symlinks the checkout to the sibling location before
+  # `composer install`; without it every job fails with
+  # `Source path "../spora-core" is not found`.
   SPORA_CORE_REF: feat/skill-providers
 
 jobs:
@@ -43,6 +50,9 @@ jobs:
           repository: spora-ai/spora-core
           ref: ${{ env.SPORA_CORE_REF }}
           path: spora-core
+
+      - name: Link spora-core to the sibling path the lock expects
+        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
@@ -72,6 +82,9 @@ jobs:
           ref: ${{ env.SPORA_CORE_REF }}
           path: spora-core
 
+      - name: Link spora-core to the sibling path the lock expects
+        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
+
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
         with:
@@ -98,6 +111,9 @@ jobs:
           repository: spora-ai/spora-core
           ref: ${{ env.SPORA_CORE_REF }}
           path: spora-core
+
+      - name: Link spora-core to the sibling path the lock expects
+        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
@@ -126,6 +142,9 @@ jobs:
           repository: spora-ai/spora-core
           ref: ${{ env.SPORA_CORE_REF }}
           path: spora-core
+
+      - name: Link spora-core to the sibling path the lock expects
+        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
