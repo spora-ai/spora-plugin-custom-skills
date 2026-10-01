@@ -200,7 +200,9 @@ jobs:
           path: .
 
       - name: SonarQube scan
-        uses: SonarSource/sonarqube-scan-action@4c644b7b412d4159f0fb5b1d6a5b1c8e5b2c5d5f # v5.0.0
+        # Same pin as spora-plugin-memories / spora-frontend, verified against a
+        # green run there. `gh api repos/SonarSource/sonarqube-scan-action/git/ref/tags/v8.2.0`.
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
