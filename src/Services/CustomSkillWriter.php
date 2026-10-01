@@ -282,7 +282,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
 
     /**
      * `null`, or a map of scalar values stringified. `''` reads as "unset": the column
-     * is nullable and an HTML form round-trip sends it empty.
+     * is nullable and an HTML form round-trip sends it empty. A boolean becomes
+     * `true`/`false` rather than `1`/`""`, which a bare `(string)` cast would give.
      *
      * @return array<string, string>|null
      * @throws CustomSkillException
@@ -296,19 +297,10 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
             throw CustomSkillException::validation('metadata must be an object of string values.');
         }
 
-        return $this->stringMap($raw, 'metadata');
-    }
-
-    /**
-     * @param array<mixed> $raw
-     * @return array<string, string>
-     */
-    private function stringMap(array $raw, string $field): array
-    {
         $out = [];
         foreach ($raw as $key => $value) {
             if (!is_string($value) && !is_int($value) && !is_float($value) && !is_bool($value)) {
-                throw CustomSkillException::validation("{$field}.{$key} must be a scalar value.");
+                throw CustomSkillException::validation("metadata.{$key} must be a scalar value.");
             }
             if (is_bool($value)) {
                 $out[(string) $key] = $value ? 'true' : 'false';
