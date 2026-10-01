@@ -382,7 +382,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
-     * Replaces the whole set inside the parent write's transaction, never half-applied.
+     * Replaces the whole set. Not atomic today: only `delete()` opens a transaction,
+     * so a failure mid-loop leaves the parent row updated with a partial sidecar set.
      *
      * @param array<string, string> $files
      */

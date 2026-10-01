@@ -43,13 +43,17 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
 
     public function __construct()
     {
-        // Fail loudly on a core without the provider seam: it never calls
-        // `skillProviders()`, so CRUD and the UI would work while no agent could see a skill.
+        // Fail loudly on a core that predates the provider seam. Without it an old core
+        // would load the CRUD routes and the admin panel while no agent could see a
+        // skill. `PluginLoader::boot()` has no per-plugin tolerance, so this throw is
+        // caught by `Kernel` and skips plugin boot entirely — the whole plugin layer goes
+        // down, not just this one. That is the trade the message states.
         if (!interface_exists(SkillProviderInterface::class)) {
             throw new PluginLoadFailedException(
                 'The custom-skills plugin requires a spora-core that ships '
-                . 'Spora\\Skills\\SkillProviderInterface. Either upgrade the host or disable the plugin; '
-                . 'without it the skills this plugin stores are invisible to every agent.',
+                . 'Spora\\Skills\\SkillProviderInterface. Either upgrade the host or disable the plugin. '
+                . 'Note that PluginLoader::boot() has no per-plugin tolerance, so this exception disables '
+                . 'every installed plugin for the boot, not only this one.',
             );
         }
     }

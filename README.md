@@ -16,6 +16,8 @@ The PHP package's `require` block pulls the frontend package in transitively —
 
 Requires `spora-ai/spora-core` **≥ 0.29.0** — the release that first ships `Spora\Skills\SkillProviderInterface`. `CustomSkillsPlugin` throws `PluginLoadFailedException` at boot on an older core rather than loading silently. That guard is load-bearing: `PluginLoader::dispatchWithTolerance()` swallows listener exceptions, so without it an old core would load the CRUD routes and admin panel happily while the agent could never see a single custom skill.
 
+Mind the cost of that guard: `PluginLoader::boot()` has no per-plugin tolerance, so the throw is caught by `Kernel`, which skips plugin boot for the whole request. On an incompatible core this plugin therefore takes **every** installed plugin down with it — a warning in `storage/spora.log`, no plugins, no app tile. That is deliberate (a half-working skills store is worse than none), but an operator who hits it should expect to disable the plugin, not just this feature.
+
 ## What it does
 
 - Ships a **skill provider** (`Spora\Plugins\CustomSkills\Providers\CustomSkillProvider`) that implements core's `Spora\Skills\SkillProviderInterface` and is registered declaratively through the `skillProviders()` hook. It is a *data* hook, not a PSR-14 event, mirroring `speechToTextProviders()`.

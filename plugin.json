@@ -1,7 +1,7 @@
 {
     "$schema": "https://docs.spora-ai.com/schemas/plugin.schema.json",
     "slug": "custom-skills",
-    "description": "Principal-scoped custom skills. Authors skills by hand or asks the agent to, and serves them through core's `skill` tool alongside the shipped ones.",
+    "description": "Principal-scoped custom skills. Author skills by hand or ask the agent to, and serve them through core's `skill` tool alongside the shipped ones.",
     "class": "Spora\\Plugins\\CustomSkills\\CustomSkillsPlugin",
     "icon": "sparkles",
     "accent": "rose"
