@@ -10,10 +10,8 @@ use Spora\Plugins\CustomSkills\Services\SkillComposer;
 use stdClass;
 
 /**
- * Shapes a {@see CustomSkill} for the REST surface. One serialiser rather than a
- * presenter per endpoint, because `GET …/{name}`, `POST` and `PUT` return the
- * *same* skill shape in the frozen contract — a client editing from a list entry
- * and from a detail view must not handle two variants.
+ * Shapes a {@see CustomSkill} for the REST surface. One serialiser, not a presenter per
+ * endpoint: `GET …/{name}`, `POST` and `PUT` return the *same* shape in the frozen contract.
  */
 final class CustomSkillResource
 {
@@ -37,9 +35,8 @@ final class CustomSkillResource
             'license'            => $skill->license,
             'compatibility'      => $skill->compatibility,
             'allowed_tools'      => $skill->allowed_tools,
-            // The contract says `metadata` is always an object (`{}` when
-            // unset); a PHP empty array encodes as `[]`, and `stdClass` is the
-            // only way to make `json_encode` emit `{}`.
+            // The contract says `metadata` is always an object; an empty PHP array encodes
+            // as `[]`, and `stdClass` is the only way to emit `{}`.
             'metadata'           => $skill->metadata === null || $skill->metadata === []
                 ? new stdClass()
                 : $skill->metadata,

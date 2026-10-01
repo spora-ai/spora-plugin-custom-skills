@@ -31,13 +31,11 @@ use Spora\Skills\SkillValidator;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Plugin entry point for principal-scoped custom skills: an admin app, the
- * `manage_skill` write tool (core's `skill` serves the reads), a
- * {@see SkillProviderInterface}, 9 REST routes under `/api/v1/custom-skills*`,
- * the migrations, and DI bindings.
+ * Plugin entry point: the admin app, the `manage_skill` write tool (core's `skill` serves
+ * the reads), a {@see SkillProviderInterface}, 9 REST routes, the migrations, the bindings.
  *
- * `skillPaths()` is deliberately not overridden — these skills live in the
- * database and the scan roots have no principal dimension.
+ * `skillPaths()` is deliberately not overridden: these skills live in the database and
+ * the scan roots have no principal dimension.
  */
 final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriberInterface
 {
@@ -45,10 +43,8 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
 
     public function __construct()
     {
-        // Fail loudly on a core that predates the provider seam. An old core
-        // never calls `skillProviders()`, so `CustomSkillProvider` is never
-        // loaded and no exception surfaces — CRUD would work, the UI would list
-        // the skills just written, and the agent could never see one.
+        // Fail loudly on a core without the provider seam: it never calls
+        // `skillProviders()`, so CRUD and the UI would work while no agent could see a skill.
         if (!interface_exists(SkillProviderInterface::class)) {
             throw new PluginLoadFailedException(
                 'The custom-skills plugin requires a spora-core that ships '
@@ -75,14 +71,11 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
     }
 
     /**
-     * Bind the plugin's interfaces and controllers. Explicit because the host
-     * container knows nothing about them; core's own services are re-listed so
+     * Bind the plugin's interfaces and controllers; core's own services are re-listed so
      * the plugin resolves standalone in tests that skip the host boot path.
      *
-     * `SkillProviderRegistry` is deliberately not bound: core owns it, and
-     * redefining it here would drop `FilesystemSkillProvider` and empty the
-     * `allowed_skills` picker. This plugin contributes to the registry through
-     * {@see self::skillProviders()} and reads from it.
+     * `SkillProviderRegistry` is deliberately not bound: core owns it, and redefining it
+     * would drop `FilesystemSkillProvider` and empty the `allowed_skills` picker.
      */
     public function onContainerBuilding(ContainerBuildingEvent $event): void
     {
@@ -103,9 +96,8 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
     }
 
     /**
-     * The 9 `/api/v1/custom-skills*` routes, behind Auth + CSRF. Each resolves
-     * its own principal from `?principal_id=`, so there is no separate
-     * group-principal route set — the selector is the difference.
+     * The 9 `/api/v1/custom-skills*` routes, behind Auth + CSRF. Each resolves its own
+     * principal from `?principal_id=`, which replaces a separate group-principal route set.
      */
     public function onRoutesRegistering(RoutesRegisteringEvent $event): void
     {

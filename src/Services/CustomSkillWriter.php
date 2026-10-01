@@ -15,18 +15,15 @@ use Spora\Skills\SkillValidator;
 /**
  * Create / update / delete / restore for principal-owned custom skills.
  *
- * Strict on purpose: `create` fails on an existing name, `update` fails on a
- * missing one, and an implicit upsert would let a mistyped `create` silently
- * overwrite work. Validation runs cheapest-first so the most specific failure
- * is the one reported.
+ * `create` refuses a taken name and `update` an unknown one: an implicit upsert would let a
+ * mistyped `create` overwrite work.
  */
 final class CustomSkillWriter implements CustomSkillWriterInterface
 {
     /**
-     * The persistence allowlist (D19) — the host's `SchemaValidator` silently
-     * permits undeclared keys, so the boundary has to be this list;
-     * {@see CustomSkill::$fillable} is the second, structural layer. `files` is
-     * a relation and is deliberately absent.
+     * The persistence allowlist (D19): the host's `SchemaValidator` silently permits
+     * undeclared keys, so this list is the boundary; {@see CustomSkill::$fillable} is the
+     * second layer. `files` is a relation, deliberately absent.
      *
      * @var list<string>
      */
@@ -77,8 +74,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         $skill->updated_by_user_id = self::actorOrNull($actorUserId);
         $skill->save();
 
-        // An absent `files` is an empty set here; on update the same null means
-        // "leave the existing set alone".
+        // An absent `files` is an empty set here; on update the same null means "leave it alone".
         $this->replaceFiles($skill, $files ?? []);
 
         return $skill->refresh();
@@ -96,8 +92,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
             throw CustomSkillException::notFound($name);
         }
 
-        // A rename would orphan every `allowed_skills` entry pointing at it.
-        // Delete + create is explicit, and the D11 scrub cleans up.
+        // A rename would orphan every `allowed_skills` entry naming it; delete + create is explicit.
         if (isset($input['name']) && trim((string) $input['name']) !== $name) {
             throw CustomSkillException::validation(
                 "name cannot be changed by update. Delete '{$name}' and create '"
@@ -111,9 +106,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         $this->assertTotalBudget($merged, $files);
         $this->assertFrontmatter($name, $merged, $merged['body'] ?? '');
 
-        // Pre-update, before `forceFill`: `snapshot()` reads the model's columns,
-        // so taking it afterwards would have `restore()` re-apply the current
-        // state and the one-step undo would exist and do nothing.
+        // Snapshot before `forceFill` — afterwards `restore()` would re-apply the
+        // current state and the one-step undo would exist and do nothing.
         $previous = $this->snapshot($skill);
 
         $skill->forceFill($merged);
@@ -141,8 +135,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
             throw CustomSkillException::notFound($name);
         }
 
-        // The scrub and the deletion share one transaction: a skill outliving
-        // its own allowlist entries is the exact silent state D11 prevents.
+        // One transaction with the scrub: a skill outliving its allowlist entries is what D11 prevents.
         return $this->scrubber->transactionally(function () use ($skill, $name, $principalId, $actorUserId): array {
             $touched = $this->scrubber->scrub($name, $principalId);
 
@@ -168,8 +161,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
             throw CustomSkillException::noPreviousVersion($name);
         }
 
-        // Snapshot the live state first, so restore is itself undoable. One
-        // level of history; a `custom_skill_revisions` table is a follow-up.
+        // Snapshot live state first, so restore is itself undoable — one level of history.
         $skill->previous_snapshot = $this->snapshot($skill);
 
         $files = is_array($snapshot['files'] ?? null) ? $snapshot['files'] : [];
@@ -200,10 +192,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
-     * The acting user, or null for a run with no human behind it — a scheduled
-     * or worker write signals that with `0`, and the `*_by_user_id` columns are
-     * nullable precisely for it. Writing `0` would violate the `users` foreign
-     * key, so no scheduled run could author a skill at all.
+     * The acting user, or null when no human is behind the run: a worker signals that with
+     * `0`, which the `users` foreign key forbids.
      */
     private static function actorOrNull(int $actorUserId): ?int
     {
@@ -232,11 +222,9 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
-     * Reject a name a shipped skill already owns. Asked with a `null` principal:
-     * core's `FilesystemSkillProvider` ignores the parameter and is first in
-     * the class list, so a hit is always a shipped skill. The registry would
-     * drop the duplicate anyway — this gives the author the reason instead of a
-     * skill that silently never appears.
+     * Reject a name a shipped skill owns. Asked with a `null` principal: core's
+     * `FilesystemSkillProvider` ignores the parameter and is first in the registry, so a hit
+     * is always a shipped skill — one the registry would drop silently.
      */
     private function assertNotShipped(string $name): void
     {
@@ -246,8 +234,6 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
-     * Column values for persistence, restricted to {@see self::WRITABLE_COLUMNS}.
-     *
      * @param array<string, mixed> $input
      * @param array<string, mixed> $defaults Values for keys the caller omitted.
      * @return array<string, mixed>
@@ -308,9 +294,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
-     * Sidecar files, or null when the caller supplied none — which on update
-     * means "leave the existing set alone", distinct from `[]` meaning
-     * "remove them all".
+     * Sidecar files, or null when the caller supplied none — on update null means "leave the
+     * existing set alone", distinct from `[]` meaning "remove them all".
      *
      * @return array<string, string>|null
      */
@@ -333,8 +318,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         foreach ($raw as $path => $content) {
             $path = (string) $path;
 
-            // `SKILL.md` is synthesised from the columns, so a row under that
-            // path would be a second, unwritable copy that collides in the listing.
+            // `SKILL.md` is synthesised, so a row under that path would be an unwritable second copy.
             if ($path === SkillComposer::ENTRY_FILE) {
                 throw CustomSkillException::validation(
                     "'" . SkillComposer::ENTRY_FILE . "' is the entry file and is generated from the skill's fields; "
@@ -369,9 +353,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
             $total += strlen($content);
         }
 
-        // The synthesised frontmatter is part of the stored skill, so budget it
-        // too — estimated from known column widths rather than composing the
-        // real file, since the cap's job is to reject before the write.
+        // The synthesised frontmatter counts too, estimated from column widths: the cap
+        // rejects before the write, and composing it would defeat that.
         $total += strlen((string) ($attributes['name'] ?? ''))
             + strlen((string) ($attributes['description'] ?? ''))
             + 128;
@@ -382,8 +365,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
-     * The full frontmatter check, using core's validator so a custom skill is
-     * held to exactly the rules a shipped one is.
+     * Core's validator, so a custom skill is held to the same rules as a shipped one.
      *
      * @param array<string, mixed> $attributes
      */
@@ -400,8 +382,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
-     * Replace the whole sidecar set, inside the parent write's transaction so a
-     * skill can never be left half-applied.
+     * Replaces the whole set inside the parent write's transaction, never half-applied.
      *
      * @param array<string, string> $files
      */
@@ -410,8 +391,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         CustomSkillFile::query()->where('custom_skill_id', $skill->id)->delete();
 
         foreach ($files as $path => $content) {
-            // Assigned explicitly rather than through `create()`: not in
-            // `$fillable`, because the parent key is this method's to decide.
+            // Assigned explicitly: the parent key is this method's to decide, so it is not
+            // in `$fillable`.
             $file = new CustomSkillFile();
             $file->custom_skill_id = (int) $skill->id;
             $file->path = $path;

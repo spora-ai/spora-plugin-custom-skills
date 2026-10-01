@@ -8,12 +8,11 @@ use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * The single failure type for every custom-skill operation. Carries the HTTP
- * envelope rather than only a message, so the controller is a pure translator
- * and the LLM tool can render the same failure without knowing status codes.
- * One class rather than a per-code hierarchy: the codes are consumed as strings
- * on the wire, so a subclass per code would add indirection without adding a
- * decision.
+ * The single failure type for every custom-skill operation, carrying the HTTP envelope
+ * rather than only a message: the controller is then a pure translator and the LLM tool
+ * renders the same failure without knowing status codes. One class, not a per-code
+ * hierarchy — the codes travel as strings on the wire, so subclasses add indirection
+ * without adding a decision.
  */
 final class CustomSkillException extends RuntimeException
 {
@@ -74,10 +73,8 @@ final class CustomSkillException extends RuntimeException
     }
 
     /**
-     * A collision with a shipped (filesystem) skill. A separate code from
-     * {@see self::nameTaken()} because the fix differs: the other one means
-     * pick a different name, this one means the name is permanently taken
-     * by core and no retry will clear it.
+     * A collision with a shipped (filesystem) skill — a separate code from
+     * {@see self::nameTaken()} because the fix differs: that one means pick another name.
      */
     public static function nameReserved(string $name): self
     {

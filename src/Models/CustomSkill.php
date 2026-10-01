@@ -13,15 +13,12 @@ use Spora\Models\Principal;
 /**
  * A skill authored for one principal, stored as columns rather than a directory.
  *
- * `$fillable` excludes every server-assigned column — `id`, `principal_id`,
- * `provenance`, the `*_by_user_id` columns and the timestamps — because the
- * host's `SchemaValidator` silently permits undeclared keys, so identity has to
- * be structurally unwritable for mass assignment to fail closed. The writer sets
- * them explicitly.
+ * `$fillable` excludes every server-assigned column — `id`, `principal_id`, `provenance`,
+ * the `*_by_user_id` columns, the timestamps — because the host's `SchemaValidator`
+ * silently permits undeclared keys, so identity must be structurally unwritable.
  *
- * `body` is the `SKILL.md` body only; the frontmatter fence is synthesised on
- * read ({@see \Spora\Plugins\CustomSkills\Services\SkillComposer}), so a
- * round-trip cannot corrupt the delimiters.
+ * `body` is the `SKILL.md` body only; the fence is synthesised on read
+ * ({@see \Spora\Plugins\CustomSkills\Services\SkillComposer}), so a round-trip is safe.
  *
  * @property int $id
  * @property int $principal_id

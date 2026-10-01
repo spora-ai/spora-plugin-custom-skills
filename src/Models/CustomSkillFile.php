@@ -10,11 +10,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * One sidecar file belonging to a {@see CustomSkill} skill.
  *
- * `bytes` is stored rather than computed so the provider can enforce
- * {@see \Spora\Skills\SkillProviderInterface::MAX_FILE_BYTES} from an indexed
- * column check before `content` is read — a `longText` blob has to be
- * materialised to measure, which is the cost the cap exists to avoid. `SKILL.md`
- * is not a row: the entry file is synthesised from the parent's columns.
+ * `bytes` is stored so the provider can enforce
+ * {@see \Spora\Skills\SkillProviderInterface::MAX_FILE_BYTES} from an indexed column check
+ * before `content` is read — measuring a `longText` blob means materialising it. `SKILL.md`
+ * is not a row: it is synthesised from the columns.
  *
  * @property int $id
  * @property int $custom_skill_id

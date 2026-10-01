@@ -8,13 +8,12 @@ use Spora\Plugins\CustomSkills\Models\CustomSkill;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * Renders a {@see CustomSkill} row as the `SKILL.md` the provider hands the LLM,
- * and as the frontmatter array `SkillValidator` checks.
+ * Renders a {@see CustomSkill} row as the `SKILL.md` the provider hands the LLM, and as
+ * the frontmatter array `SkillValidator` checks.
  *
- * Synthesised rather than stored because the frontmatter is already normalised
- * into columns: storing it too would create a second writable copy that could
- * disagree. Dumped through `symfony/yaml`, the parser core's `SkillScanner` reads
- * files with, so an entry round-trips through that scanner unchanged.
+ * Synthesised rather than stored: the frontmatter is already normalised into columns, so a
+ * second copy could disagree. Dumped through `symfony/yaml`, the parser core's
+ * `SkillScanner` reads with, so an entry round-trips unchanged.
  */
 final class SkillComposer
 {
@@ -22,9 +21,8 @@ final class SkillComposer
     public const ENTRY_FILE = 'SKILL.md';
 
     /**
-     * Core's validator expects the hyphenated `allowed-tools`; the tool parameter
-     * and column are `allowed_tools` as the friendlier shape for an LLM. The
-     * rename happens here, the one boundary both sides agree on.
+     * Core's validator expects the hyphenated `allowed-tools`; the tool parameter and column
+     * are `allowed_tools`. The rename happens here, the boundary both sides agree on.
      *
      * @return array<string, mixed>
      */
@@ -44,9 +42,8 @@ final class SkillComposer
         if ($skill->allowed_tools !== null && $skill->allowed_tools !== '') {
             $frontmatter['allowed-tools'] = $skill->allowed_tools;
         }
-        // An unset `metadata` reads back as null, not `[]` — it is an array
-        // cast. Testing `!== []` alone would emit `metadata: null`, which the
-        // validator rejects, so an ordinary skill would fail to write.
+        // An unset `metadata` reads back as null, not `[]` — it is an array cast. Testing
+        // `!== []` alone would emit `metadata: null`, which the validator rejects.
         if ($skill->metadata !== null && $skill->metadata !== []) {
             $frontmatter['metadata'] = $skill->metadata;
         }

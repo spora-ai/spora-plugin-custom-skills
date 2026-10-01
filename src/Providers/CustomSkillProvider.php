@@ -13,15 +13,13 @@ use Spora\Skills\SkillSummary;
 /**
  * Serves database-backed, principal-scoped skills to core's `skill` tool.
  *
- * Every method fails closed on an unresolvable principal. Core calls the
- * provider with `null` on operator-default and strict-mode paths, and
- * `resolveForToolExecute()` also yields a dangling non-zero id for an agent
- * whose principal row is gone — so the guard is `<= 0` *and* a lookup that
- * misses.
+ * Every method fails closed on an unresolvable principal: core calls it with `null` on
+ * operator-default and strict-mode paths, and `resolveForToolExecute()` can also yield a
+ * dangling non-zero id — so the guard is `<= 0` *and* a lookup that misses.
  */
 final class CustomSkillProvider implements SkillProviderInterface
 {
-    /** The `source` reported per skill. Also the admin app's grouping key. */
+    /** The `source` reported per skill, and the admin app's grouping key. */
     public const SOURCE = 'custom-skills';
 
     public function __construct(private readonly CustomSkillQueryInterface $query) {}
@@ -62,9 +60,8 @@ final class CustomSkillProvider implements SkillProviderInterface
             body: $skill->body,
             compatibility: $skill->compatibility,
             allowedTools: $skill->allowed_tools,
-            // The descriptor's `metadata` is a non-nullable `array` while the
-            // model's cast reads an unset column as null — a TypeError on the
-            // first skill written without it, which is the common case.
+            // The descriptor's `metadata` is non-nullable while the cast reads null — a
+            // TypeError on the common skill.
             metadata: $skill->metadata ?? [],
             files: $this->query->fileListing($skill),
             warnings: $warnings,
@@ -81,16 +78,15 @@ final class CustomSkillProvider implements SkillProviderInterface
             return null;
         }
 
-        // Always at least the entry file, so a caller can tell "has files" from
-        // "does not exist" without a second lookup.
+        // Always at least the entry file, so a caller can tell "has files" from "does not exist".
         return $this->query->fileListing($skill);
     }
 
     public function getSkillFile(string $name, string $path, ?int $principalId): ?string
     {
-        // Defence in depth, and cheap: `$path` only reaches a database equality
-        // match. A provider holding an attacker-supplied path has no business
-        // returning a `../` segment to a caller that may render a file tree.
+        // Defence in depth, and cheap: `$path` only reaches a DB equality match, and a
+        // provider holding an attacker-supplied path has no business returning a `../`
+        // segment to a caller that may render a file tree.
         if (!self::isSafePath($path)) {
             return null;
         }
@@ -104,9 +100,7 @@ final class CustomSkillProvider implements SkillProviderInterface
     }
 
     /**
-     * A skill the principal owns, or null. This is the tenant boundary — the
-     * provider is the only place that decides visibility, so never a name-only
-     * lookup.
+     * A skill the principal owns, or null — the tenant boundary, so never a name-only lookup.
      */
     private function resolve(string $name, ?int $principalId): ?CustomSkill
     {
@@ -126,9 +120,7 @@ final class CustomSkillProvider implements SkillProviderInterface
             description: $skill->description,
             license: $skill->license,
             source: self::SOURCE,
-            // The writer forces `name === slug`, so the URL segment and the
-            // frontmatter name cannot drift as they legally can for a
-            // filesystem skill.
+            // The writer forces `name === slug`, so the segment cannot drift from the name.
             slug: $skill->name,
             fileCount: count($this->query->fileListing($skill)),
             hasWarnings: $warnings,

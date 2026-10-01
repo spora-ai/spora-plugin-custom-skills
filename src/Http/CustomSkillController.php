@@ -19,15 +19,14 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Principal-scoped CRUD for custom skills.
  *
- * Read and write resolve the target principal through different gates (D10). A
- * custom skill is instructions the LLM will follow, so reading a group's needs
- * only membership while authoring into it needs owner/admin. One gate for both
- * would either let any member rewrite a group's agent behaviour or hide the
- * group's skills from the members who run its agents.
+ * Read and write gate the target principal differently (D10): a custom skill is
+ * instructions the LLM will follow, so reading a group needs only membership while
+ * authoring needs owner/admin — one gate would either let any member rewrite the group's
+ * agent behaviour or hide the group's skills from its members.
  *
- * An unreadable principal yields an empty list on `index()` and 404 elsewhere
- * rather than 403: "forbidden" would confirm the principal exists. Writes say
- * 403, where the caller already knows what they asked to change.
+ * An unreadable principal yields an empty list on `index()` and 404 elsewhere, not 403 —
+ * "forbidden" would confirm the principal exists. Writes say 403, where the caller knows
+ * the target.
  */
 final class CustomSkillController
 {
@@ -42,9 +41,6 @@ final class CustomSkillController
         private readonly SkillAllowlistReader $allowlist,
     ) {}
 
-    /**
-     * GET /api/v1/custom-skills
-     */
     public function index(Request $request): JsonResponse
     {
         $principalId = $this->readablePrincipalId($request);
@@ -60,9 +56,6 @@ final class CustomSkillController
         return new JsonResponse(['data' => ['skills' => $skills]]);
     }
 
-    /**
-     * GET /api/v1/custom-skills/{name}
-     */
     public function show(Request $request): JsonResponse
     {
         return $this->run(function () use ($request): JsonResponse {
@@ -72,9 +65,6 @@ final class CustomSkillController
         });
     }
 
-    /**
-     * GET /api/v1/custom-skills/{name}/files
-     */
     public function files(Request $request): JsonResponse
     {
         return $this->run(function () use ($request): JsonResponse {
@@ -85,8 +75,7 @@ final class CustomSkillController
     }
 
     /**
-     * GET /api/v1/custom-skills/{name}/files/{path} — a nested path arrives
-     * percent-encoded and is decoded by the router.
+     * `files/{path}` — a nested path arrives percent-encoded, decoded by the router.
      */
     public function file(Request $request): JsonResponse
     {
@@ -108,9 +97,8 @@ final class CustomSkillController
     }
 
     /**
-     * GET /api/v1/custom-skills/{name}/allowlist — the D11 blast radius, exactly
-     * the rows the scrubber rewrites on delete, so the confirmation dialog can
-     * show the multi-agent config change before it happens.
+     * `allowlist` — the D11 blast radius: exactly the rows a delete rewrites, so the dialog
+     * can show the change first.
      */
     public function allowlist(Request $request): JsonResponse
     {
@@ -122,9 +110,6 @@ final class CustomSkillController
         });
     }
 
-    /**
-     * POST /api/v1/custom-skills
-     */
     public function store(Request $request): JsonResponse
     {
         return $this->run(function () use ($request): JsonResponse {
@@ -145,9 +130,6 @@ final class CustomSkillController
         });
     }
 
-    /**
-     * PUT /api/v1/custom-skills/{name}
-     */
     public function update(Request $request): JsonResponse
     {
         return $this->run(function () use ($request): JsonResponse {
@@ -166,9 +148,6 @@ final class CustomSkillController
         });
     }
 
-    /**
-     * POST /api/v1/custom-skills/{name}/restore
-     */
     public function restore(Request $request): JsonResponse
     {
         return $this->run(function () use ($request): JsonResponse {
@@ -186,8 +165,7 @@ final class CustomSkillController
     }
 
     /**
-     * DELETE /api/v1/custom-skills/{name} — returns the rows the delete rewrote
-     * so the caller can name the agents that lost the skill.
+     * `destroy` — returns the rows the delete rewrote, so the caller can name who lost it.
      */
     public function destroy(Request $request): JsonResponse
     {
@@ -209,7 +187,6 @@ final class CustomSkillController
         });
     }
 
-    /** One error translation for every route. */
     private function run(callable $handler): JsonResponse
     {
         try {
@@ -224,7 +201,6 @@ final class CustomSkillController
         }
     }
 
-    /** The principal this request may read, or null when it named one it cannot see. */
     private function readablePrincipalId(Request $request): ?int
     {
         $requested = $this->requestedPrincipalId($request);
@@ -249,9 +225,6 @@ final class CustomSkillController
         return $principalId;
     }
 
-    /**
-     * The principal this request may write to. Throws 403 otherwise.
-     */
     private function writablePrincipalId(Request $request): int
     {
         $requested = $this->requestedPrincipalId($request);
@@ -288,9 +261,8 @@ final class CustomSkillController
     }
 
     /**
-     * `?principal_id=` as a positive int, or null when absent or malformed. A
-     * non-positive value is treated as absent rather than as an attack — the
-     * own-principal fallback is the safer of the two readings.
+     * `?principal_id=` as a positive int, or null. Non-positive is read as absent, not as
+     * an attack: the own-principal fallback is the safer of the two readings.
      */
     private function requestedPrincipalId(Request $request): ?int
     {
@@ -321,8 +293,7 @@ final class CustomSkillController
 
         $skill = $this->query->findForPrincipal($name, $principalId);
         if ($skill === null) {
-            // One answer for "no such skill" and "not yours" — a 403 would
-            // confirm the name exists on a principal the caller cannot read.
+            // One answer for "no such skill" and "not yours": 403 would confirm the name exists.
             throw CustomSkillException::notFound($name);
         }
 

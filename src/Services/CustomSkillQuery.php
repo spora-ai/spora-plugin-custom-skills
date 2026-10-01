@@ -80,11 +80,9 @@ final class CustomSkillQuery implements CustomSkillQueryInterface
             return null;
         }
 
-        // The cap is checked from the stored byte count, before `content` is
-        // read: a `longText` blob has to be materialised to be measured,
-        // which is the cost the cap exists to avoid. The caller re-asserts
-        // the same cap on the returned string, because a provider is
-        // plugin-supplied code and this one is the plugin.
+        // Checked from the stored byte count, before `content` is read: measuring a
+        // `longText` blob means materialising it, the cost the cap exists to avoid. The
+        // caller re-asserts the cap on what comes back.
         if ($file->bytes > SkillProviderInterface::MAX_FILE_BYTES) {
             return null;
         }

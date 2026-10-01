@@ -18,15 +18,12 @@ use Spora\Tools\ValueObjects\ToolResult;
 /**
  * Lets an agent author, revise and delete its own principal's skills.
  *
- * Write-only by design: reading is already gated by `allowed_skills` and the
- * provider's own scoping, and a second read tool would be one more way for a
- * model to see a skill it was not granted. `delete` ships
- * `enabledByDefault: false` and every operation is approval-gated, following
- * the `write_notes_overwrite` precedent.
+ * Write-only by design: reads are already gated by `allowed_skills` and the provider's
+ * scoping, and a second read tool is one more way for a model to see a skill it was not
+ * granted. `delete` ships `enabledByDefault: false`; every operation is approval-gated.
  *
- * `$userId` is never used for scoping — in the tool-execute path that is the
- * runner, not the principal, so it would write a group agent's skills onto
- * whichever member triggered the run.
+ * `$userId` is never used for scoping — in the tool-execute path it is the runner, so it
+ * would write a group agent's skills onto whichever member triggered the run.
  */
 #[Tool(
     name: 'manage_skill',
@@ -96,15 +93,12 @@ final class ManageSkillTool extends AbstractTool
     }
 
     /**
-     * The approval card and the timeline row. Never includes the body: up to
-     * 200 KB of markdown is unreadable in a prompt, so byte counts stand in.
+     * The approval card and the timeline row. Never the body: 200 KB of markdown does not
+     * fit a prompt, so byte counts stand in.
      *
-     * A `delete` cannot state how many allowlists it will rewrite:
-     * `describeAction()` gets the LLM's arguments and nothing else, so the only
-     * principal id reachable is one the model supplied, and a count derived
-     * from it would be unauthenticated and a cross-tenant disclosure. The blast
-     * radius is surfaced instead from the two places that know the principal —
-     * `GET …/{name}/allowlist` and the `delete` result.
+     * `delete` cannot count the allowlists it will rewrite: only the LLM's arguments reach
+     * here and their principal id is model-supplied, so a count would be a cross-tenant
+     * disclosure. `GET …/{name}/allowlist` carries the radius instead.
      */
     public function describeAction(array $arguments): string
     {
@@ -191,26 +185,22 @@ final class ManageSkillTool extends AbstractTool
     {
         $payload = $arguments;
 
-        // `action` is the discriminator, not content: the persistence allowlist
-        // would silently drop it, which hides that the allowlist is doing work.
+        // `action` is the discriminator, not content, and the allowlist would drop it
+        // silently; `principal_id` is never honoured, the principal coming from the context.
         unset($payload['action']);
 
         if ($name !== null) {
             $payload['name'] = $name;
         }
 
-        // Never honoured — the principal comes from the execution context
-        // precisely so a model cannot redirect its write to another tenant.
         unset($payload['principal_id']);
 
         return $payload;
     }
 
     /**
-     * `$context` when the host resolved one, else the agent's own principal.
-     * Both sentinels are rejected: `0` for a missing agent, and a dangling
-     * non-zero id for a missing principal row, which only `<= 0` misses and
-     * which would otherwise surface as a foreign-key 500.
+     * `$context` when the host resolved one, else the agent's principal. Both sentinels are
+     * rejected: `0`, and a dangling non-zero id that only `<= 0` misses.
      */
     private function principalId(int $agentId, ?PrincipalContext $context): int
     {

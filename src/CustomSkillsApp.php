@@ -7,12 +7,8 @@ namespace Spora\Plugins\CustomSkills;
 use Spora\Apps\VueAppInterface;
 
 /**
- * Admin-panel metadata for the Custom Skills feature.
- *
- * `name()` must equal the manifest slug: the host resolves
- * `/plugins/<slug>/<entry()>` and `/apps/<slug>` from the same value, and
- * migration filenames must carry it verbatim. The hyphen is load-bearing in all
- * three, which is why it reads oddly next to hyphen-free plugin slugs.
+ * `name()` must equal the manifest slug: the host resolves `/plugins/<slug>/<entry()>` and
+ * `/apps/<slug>` from the same value, and migration filenames carry it verbatim.
  */
 final class CustomSkillsApp implements VueAppInterface
 {
@@ -37,9 +33,8 @@ final class CustomSkillsApp implements VueAppInterface
     }
 
     /**
-     * `rose` — free where `violet` is taken by team-graph. An unknown token is
-     * coerced to `primary` rather than rejected, so a typo would silently
-     * repaint the tile. See `AppInterface::ACCENT_TOKENS`.
+     * `rose`; `violet` is taken by team-graph. An unknown token is coerced to `primary`
+     * rather than rejected, so a typo silently repaints the tile.
      */
     public function accent(): string
     {

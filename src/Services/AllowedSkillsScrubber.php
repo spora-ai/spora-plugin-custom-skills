@@ -10,27 +10,20 @@ use Spora\Services\ToolConfigServiceInterface;
 use Spora\Tools\SkillTool;
 
 /**
- * Removes a deleted skill's name from every `allowed_skills` array carrying it
- * for one principal.
+ * Removes a deleted skill's name from every `allowed_skills` array carrying it for one
+ * principal — the only host data this feature changes, so it stays as narrow as the
+ * decision allows: the principal default and that principal's agent overrides, never the
+ * global `SkillTool` row, which is not principal-owned and so would reach every other
+ * tenant's agents. Custom skills only; a shipped one is not deletable here.
  *
- * The only behaviour change this feature makes to host data, so it is scoped as
- * tightly as the decision allows: the principal-level default and that
- * principal's agent overrides, never the global `SkillTool` row — a global
- * default is not principal-owned, so editing it would reach every other
- * tenant's agents. Custom skills only, since filesystem skills are not deletable
- * through this plugin.
- *
- * Writes go through `ToolConfigService`, never the `settings` column: the
- * accessor throws by design, values are encrypted at rest, and `putAgentOverride`
- * merges — so only `allowed_skills` is rewritten.
+ * Writes go through `ToolConfigService`, never the `settings` column: the accessor throws
+ * by design, values are encrypted at rest, and `putAgentOverride` merges.
  */
 final class AllowedSkillsScrubber implements AllowedSkillsScrubberInterface
 {
     public function __construct(private readonly ToolConfigServiceInterface $toolConfig) {}
 
     /**
-     * Scrub `$name` and report what changed.
-     *
      * @return list<array{id: int, name: string|null, scope: 'agent'|'principal'}>
      */
     public function scrub(string $name, int $principalId): array
@@ -67,12 +60,10 @@ final class AllowedSkillsScrubber implements AllowedSkillsScrubberInterface
     }
 
     /**
-     * The allowlist without `$name`, or null when the stored value does not
-     * mention it so the caller skips the write.
+     * The allowlist without `$name`, or null when unchanged so the caller skips the write.
      *
-     * A multi-select round-trips as a JSON-encoded *string* as often as an
-     * array. Iterating the string without decoding it yields nothing, which
-     * would make the scrub a silent no-op on exactly the rows it exists for.
+     * A multi-select round-trips as a JSON-encoded *string* as often as an array, and
+     * iterating it undecoded yields nothing — a silent no-op on the rows this exists for.
      *
      * @return list<string>|null
      */
@@ -87,9 +78,9 @@ final class AllowedSkillsScrubber implements AllowedSkillsScrubberInterface
     }
 
     /**
-     * Coerce a stored `allowed_skills` value to a list of names. Public because
-     * {@see SkillAllowlistReader::forSkill()} reads through the same decoder: a
-     * preview that disagrees with the rewrite is worse than no preview.
+     * Coerce a stored `allowed_skills` value to names. Public because
+     * {@see SkillAllowlistReader::forSkill()} reads through the same decoder, and a preview
+     * that disagrees with the rewrite is worse than none.
      *
      * @return list<string>
      */
@@ -115,8 +106,7 @@ final class AllowedSkillsScrubber implements AllowedSkillsScrubberInterface
     }
 
     /**
-     * Run `$operation` and roll it back as a unit, so a skill can never be
-     * deleted while its name survives on an agent's allowlist.
+     * Roll `$operation` back as a unit: a skill must never be deleted while its name survives.
      *
      * @template T
      * @param callable():T $operation
