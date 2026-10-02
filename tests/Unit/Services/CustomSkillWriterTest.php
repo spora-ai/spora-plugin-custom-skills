@@ -404,6 +404,43 @@ it('caps a single sidecar file at the provider read limit', function (): void {
     expect($refusal->errorCode)->toBe('FILE_TOO_LARGE');
 });
 
+it('caps the synthesised SKILL.md at the read limit, not just its sidecars', function (): void {
+    // SKILL.md is composed from the columns on read, so it never passes through
+    // the sidecar validation — and it is the *only* file the provider returns
+    // that the writer bounds by a different cap. A body between the file limit
+    // and the total limit used to save cleanly and then be unreadable: core's
+    // SkillTool refuses the read with "skill reads are capped at 50000 bytes",
+    // leaving the operator with a listed, enabled, unopenable skill.
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    $refusal = refusal(fn() => $writer->create($principalId, $userId, [
+        'name'        => 'alpha',
+        'description' => 'A skill whose entry file is over the read cap.',
+        'body'        => str_repeat('x', SkillProviderInterface::MAX_FILE_BYTES),
+    ], CustomSkill::PROVENANCE_HUMAN));
+
+    expect($refusal->errorCode)->toBe('FILE_TOO_LARGE')
+        ->and(CustomSkill::query()->forPrincipal($principalId)->count())->toBe(0);
+});
+
+it('rejects a dangling principal id rather than letting the foreign key fail', function (): void {
+    // Core's resolveForToolExecute() hands back the agent's own principal_id when
+    // that row is gone, so a non-zero id that points at nothing reaches the
+    // insert. A `<= 0` check passed it, and the FK turned it into a 500 from
+    // inside a tool call that renders every other failure as a named error.
+    ['userId' => $userId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    $refusal = refusal(fn() => $writer->create(999_999, $userId, [
+        'name'        => 'alpha',
+        'description' => 'Written against a principal that does not exist.',
+        'body'        => "# Steps\n\n1. Do the thing.\n",
+    ], CustomSkill::PROVENANCE_HUMAN));
+
+    expect($refusal->errorCode)->toBe('VALIDATION_ERROR');
+});
+
 it('caps the total bytes of body, frontmatter and sidecars', function (): void {
     ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();

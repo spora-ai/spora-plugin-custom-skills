@@ -48,7 +48,7 @@ use Spora\Tools\ValueObjects\ToolResult;
 )]
 #[ToolOperation(
     name: 'delete',
-    description: 'Delete a skill and remove it from the allowed_skills of every agent on this principal. Irreversible unless the skill has a previous version to restore.',
+    description: 'Delete a skill and remove it from the allowed_skills of every agent on this principal. Irreversible: the skill, its files and its previous version are removed together.',
     operatorDescription: 'Delete a custom skill',
     enabledByDefault: false,
     requiresApprovalByDefault: true,
@@ -58,7 +58,7 @@ use Spora\Tools\ValueObjects\ToolResult;
 #[ToolParameter(name: 'body', type: 'string', description: 'The skill itself, as markdown. The procedure, the constraints, the examples. This is loaded into context in full, so be specific rather than exhaustive.', required: ['create', 'update'])]
 #[ToolParameter(name: 'license', type: 'string', description: 'License identifier, e.g. "MIT".', required: false)]
 #[ToolParameter(name: 'compatibility', type: 'string', description: 'Version constraint the skill applies to, e.g. "spora>=0.29".', required: false)]
-#[ToolParameter(name: 'allowed_tools', type: 'string', description: 'Comma-separated tool names the skill needs, e.g. "read_email, send_email".', required: false)]
+#[ToolParameter(name: 'allowed_tools', type: 'string', description: 'Space-separated tool names the skill needs, e.g. "read_email send_email" — the format the skill spec uses for allowed-tools.', required: false)]
 #[ToolParameter(name: 'metadata', type: 'object', description: 'Extra frontmatter as scalar key/value pairs.', required: false)]
 #[ToolParameter(name: 'files', type: 'object', description: 'Sidecar files as path => content. Replaces the entire existing set, so include the files that should survive. Not needed for a SKILL.md-only skill.', required: false)]
 final class ManageSkillTool extends AbstractTool
@@ -157,7 +157,10 @@ final class ManageSkillTool extends AbstractTool
             CustomSkill::PROVENANCE_AGENT,
         );
 
-        return new ToolResult(true, "Updated skill [{$skill->name}]. The previous version is one `restore` away.");
+        return new ToolResult(
+            true,
+            "Updated skill [{$skill->name}]. The previous version is restorable from the admin panel.",
+        );
     }
 
     private function delete(int $principalId, ?int $userId, string $name): ToolResult

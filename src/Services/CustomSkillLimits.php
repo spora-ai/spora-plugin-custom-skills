@@ -10,8 +10,12 @@ namespace Spora\Plugins\CustomSkills\Services;
  * warning and `isValid()` checks errors only, so on the filesystem path nothing bounds a
  * body — and a principal-scoped store is a denial-of-service surface.
  *
- * `MAX_FILE_BYTES` is deliberately not restated here: the provider enforces it, so one
- * number cannot drift.
+ * `MAX_FILE_BYTES` is deliberately not restated here, so one number cannot drift — but
+ * note *who* enforces it, because it is not the provider. The provider's
+ * `getSkillFile()` does not cap the synthesised `SKILL.md`; the writer does, on every
+ * write, because that file is composed from columns and so never passes through the
+ * sidecar validation. This comment previously claimed the provider enforced it, which
+ * is why an over-cap entry file could be written and then be unopenable.
  */
 final class CustomSkillLimits
 {

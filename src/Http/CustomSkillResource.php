@@ -6,7 +6,6 @@ namespace Spora\Plugins\CustomSkills\Http;
 
 use Spora\Plugins\CustomSkills\Models\CustomSkill;
 use Spora\Plugins\CustomSkills\Services\CustomSkillQueryInterface;
-use Spora\Plugins\CustomSkills\Services\SkillComposer;
 use stdClass;
 
 /**
@@ -63,13 +62,5 @@ final class CustomSkillResource
             'warnings'           => $warnings,
             'warning_count'      => count($warnings),
         ];
-    }
-
-    /**
-     * @param list<array{path: string, bytes: int}> $files
-     */
-    public static function entryIsFirst(array $files): bool
-    {
-        return ($files[0]['path'] ?? null) === SkillComposer::ENTRY_FILE;
     }
 }

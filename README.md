@@ -62,7 +62,7 @@ Enforced as **errors** with named codes, not warnings. `SkillValidator` emits a 
 | Bytes per file | 50 000 | `FILE_TOO_LARGE` |
 | `description` length | 1024 chars | `DESCRIPTION_TOO_LONG` |
 
-The per-file read cap is core's `SkillProviderInterface::MAX_FILE_BYTES`, enforced by the provider before content is materialised **and** re-asserted by `SkillTool` on what comes back.
+The per-file read cap is core's `SkillProviderInterface::MAX_FILE_BYTES`, re-asserted by `SkillTool` on what a provider returns. It is enforced on the **write** side, by this plugin rather than by the provider: sidecars are checked as they are validated, and the synthesised `SKILL.md` is checked by composing it, because that file is built from columns and so never passes through the sidecar loop. The provider's own `getSkillFile()` does not cap it.
 
 ## API surface
 
@@ -76,7 +76,7 @@ After install, 9 endpoints appear under `/api/v1/custom-skills*`. All require `A
 - `PUT    /api/v1/custom-skills/{name}` — update; a name change is rejected, and `files` fully replaces the sidecar set.
 - `DELETE /api/v1/custom-skills/{name}` — delete, and scrub the allowlist.
 - `POST   /api/v1/custom-skills/{name}/restore` — restore `previous_snapshot` in one step (itself undoable).
-- `GET    /api/v1/custom-skills/{name}/allowlist` — which agents resolve this skill via `allowed_skills`; the blast-radius preview behind the delete dialog and the tool's `describeAction`.
+- `GET    /api/v1/custom-skills/{name}/allowlist` — which agents resolve this skill via `allowed_skills`; the blast-radius preview behind the delete dialog. The tool's `describeAction` deliberately does **not** count agents, because only the model's arguments reach it and a count would be a cross-tenant disclosure.
 
 Pre-shipped skills are **not** re-exposed here. They come from the host's `GET /api/v1/skills`.
 

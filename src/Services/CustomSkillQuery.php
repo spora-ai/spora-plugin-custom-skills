@@ -9,6 +9,15 @@ use Spora\Plugins\CustomSkills\Models\CustomSkillFile;
 use Spora\Skills\SkillProviderInterface;
 use Spora\Skills\SkillValidator;
 
+/**
+ * The read side of a custom skill: listing, the synthesised entry file, and the
+ * name lookup the provider resolves against.
+ *
+ * Deliberately free of `ToolConfigService`. The allowlist read needs that
+ * service, and the service's construction needs a `SkillProviderRegistry`, which
+ * needs this class — so the two are split and this half takes only the composer
+ * and the validator. `SkillAllowlistReader` is the other half.
+ */
 final class CustomSkillQuery implements CustomSkillQueryInterface
 {
     public function __construct(

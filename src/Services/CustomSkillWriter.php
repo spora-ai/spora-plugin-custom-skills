@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Spora\Plugins\CustomSkills\Services;
 
+use Spora\Models\Principal;
 use Spora\Plugins\CustomSkills\Exceptions\CustomSkillException;
 use Spora\Plugins\CustomSkills\Models\CustomSkill;
 use Spora\Plugins\CustomSkills\Models\CustomSkillFile;
@@ -63,6 +64,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
 
         $attributes = $this->columnAttributes($input, ['name' => $name]);
         $this->assertTotalBudget($attributes, $files);
+        $this->assertEntryFileReadable($attributes);
 
         $this->assertFrontmatter($name, $attributes, $input['body'] ?? '');
 
@@ -104,6 +106,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
 
         $merged = array_merge($this->snapshotAttributes($skill), $this->columnAttributes($input, []));
         $this->assertTotalBudget($merged, $files);
+        $this->assertEntryFileReadable($merged);
         $this->assertFrontmatter($name, $merged, $merged['body'] ?? '');
 
         // Snapshot before `forceFill` — afterwards `restore()` would re-apply the
@@ -172,6 +175,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         $attributes['name'] = $name;
 
         $this->assertTotalBudget($attributes, $files);
+        $this->assertEntryFileReadable($attributes);
         $this->assertFrontmatter($name, $attributes, $attributes['body'] ?? '');
 
         $skill->forceFill($attributes);
@@ -184,10 +188,23 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         return $skill->refresh();
     }
 
+    /**
+     * The principal must be a row that exists, not merely a positive integer.
+     *
+     * Core's `PrincipalResolver::resolveForToolExecute()` hands back the agent's
+     * own `principal_id` when that row is missing, so an agent pointing at a
+     * deleted principal yields a plausible non-zero id. A `<= 0` check passes it
+     * straight through to the insert, where the foreign key turns it into an
+     * uncaught `QueryException` and a 500 — from inside a tool call that already
+     * renders every other failure as a named error.
+     */
     private function assertPrincipal(int $principalId): void
     {
-        if ($principalId <= 0) {
-            throw CustomSkillException::validation('An unresolvable principal cannot own a custom skill.');
+        if ($principalId <= 0 || Principal::query()->find($principalId) === null) {
+            throw CustomSkillException::validation(
+                'An unresolvable principal cannot own a custom skill. '
+                . 'This usually means the agent\'s principal row is missing.',
+            );
         }
     }
 
@@ -380,6 +397,34 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
 
         if ($total > CustomSkillLimits::TOTAL_BYTES) {
             throw CustomSkillException::totalSizeExceeded(CustomSkillLimits::TOTAL_BYTES, $total);
+        }
+    }
+
+    /**
+     * The entry file is synthesised from the columns on read, so it is the one
+     * "file" whose size no per-file check in {@see self::validatedFiles()} ever
+     * sees — and it is bounded by a *different* cap from the body: the provider's
+     * `MAX_FILE_BYTES`, which core's `SkillTool` re-asserts on the way out.
+     *
+     * Without this a body over that cap is accepted (the total budget allows up to
+     * four times as much) and the skill saves, but every later read of its
+     * `SKILL.md` is refused with "skill reads are capped at 50000 bytes". The
+     * operator gets a skill that is enabled, listed, and unopenable.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    private function assertEntryFileReadable(array $attributes): void
+    {
+        $probe = new CustomSkill();
+        $probe->forceFill($attributes);
+
+        $entry = $this->composer->compose($probe);
+
+        if (strlen($entry) > SkillProviderInterface::MAX_FILE_BYTES) {
+            throw CustomSkillException::fileTooLarge(
+                SkillComposer::ENTRY_FILE,
+                SkillProviderInterface::MAX_FILE_BYTES,
+            );
         }
     }
 
