@@ -108,7 +108,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
 
         // Snapshot before `forceFill` — afterwards `restore()` would re-apply the
         // current state and the one-step undo would exist and do nothing.
-        $previous = $this->snapshot($skill);
+        $previous = $this->snapshot($skill, $actorUserId);
 
         $skill->forceFill($merged);
         $skill->previous_snapshot = $previous;
@@ -162,7 +162,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         }
 
         // Snapshot live state first, so restore is itself undoable — one level of history.
-        $skill->previous_snapshot = $this->snapshot($skill);
+        $skill->previous_snapshot = $this->snapshot($skill, $actorUserId);
 
         $files = is_array($snapshot['files'] ?? null) ? $snapshot['files'] : [];
         $attributes = array_intersect_key(
@@ -425,11 +425,26 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     /**
      * The current state, in the shape {@see self::restore()} reads back.
      *
+     * `captured_at` / `captured_by` are not skill content: `WRITABLE_COLUMNS` filters
+     * them out on the way back in. They are here so the desk can say what "Restore
+     * previous version" is restoring, which it otherwise cannot.
+     *
+     * There is exactly one of these. Taking it is what makes `restore()` undoable —
+     * restoring re-snapshots the live state first, so a second restore returns you
+     * where you started — but that makes this a two-state toggle, not a history, and
+     * the label used to read as though it were a deeper one.
+     *
      * @return array<string, mixed>
      */
-    private function snapshot(CustomSkill $skill): array
+    private function snapshot(CustomSkill $skill, ?int $actorUserId): array
     {
         return $this->snapshotAttributes($skill) + [
+            'captured_at' => $skill->updated_at->format('Y-m-d H:i:s'),
+            // The actor of the write that is *overwriting* this version, which is who
+            // the rollback is undoing. Reading the column here would give the previous
+            // writer instead: the snapshot is taken before `forceFill` assigns the new
+            // one, and on a first write the column is still null.
+            'captured_by' => self::actorOrNull($actorUserId),
             'files' => self::filesAsMap($skill),
         ];
     }

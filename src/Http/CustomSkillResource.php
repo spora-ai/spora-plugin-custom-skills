@@ -49,6 +49,17 @@ final class CustomSkillResource
             'updated_at'         => $skill->updated_at->format('Y-m-d H:i:s'),
             'files'              => $files,
             'has_previous'       => is_array($skill->previous_snapshot),
+            // When the rollback copy was taken. Null on a row written before this
+            // existed, which is the same shape as "no previous version" for the
+            // label and different for the button, so both are reported.
+            'previous_at'        => is_array($skill->previous_snapshot)
+                && is_string($skill->previous_snapshot['captured_at'] ?? null)
+                    ? $skill->previous_snapshot['captured_at']
+                    : null,
+            'previous_by'        => is_array($skill->previous_snapshot)
+                && is_int($skill->previous_snapshot['captured_by'] ?? null)
+                    ? $skill->previous_snapshot['captured_by']
+                    : null,
             'warnings'           => $warnings,
             'warning_count'      => count($warnings),
         ];

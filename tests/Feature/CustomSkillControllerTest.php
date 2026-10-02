@@ -321,7 +321,7 @@ it('returns every contract key from show(), with SKILL.md first and metadata an 
             'id', 'principal_id', 'name', 'slug', 'description', 'license', 'compatibility',
             'allowed_tools', 'metadata', 'body', 'body_bytes', 'provenance',
             'created_by_user_id', 'updated_by_user_id', 'created_at', 'updated_at',
-            'files', 'has_previous', 'warnings', 'warning_count',
+            'files', 'has_previous', 'previous_at', 'previous_by', 'warnings', 'warning_count',
         ])
         ->and($payload['id'])->toBe((int) $skill->id)
         ->and($payload['principal_id'])->toBe($principalId)

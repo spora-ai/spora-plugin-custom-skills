@@ -238,7 +238,14 @@ it('snapshots the pre-update frontmatter, body and files', function (): void {
         'metadata'      => null,
         'body'          => "# Original\n\n1. Do the thing.\n",
         'files'         => ['notes.md' => 'Original notes.'],
+        // Bookkeeping, not content: it dates the rollback copy and names whoever
+        // overwrote it, so the desk can label the restore. The exact stamp is not
+        // pinned — a relative label in the UI would make it unstable to assert on.
+        'captured_at'   => $updated->previous_snapshot['captured_at'] ?? null,
+        'captured_by'   => $userId,
     ]);
+
+    expect($updated->previous_snapshot['captured_at'])->toBeString();
 });
 
 it('restores the previous body and files, and snapshots the live state so a restore is itself undoable', function (): void {
@@ -270,6 +277,26 @@ it('restores the previous body and files, and snapshots the live state so a rest
 
     expect($restoredAgain->body)->toBe("# Revised\n\n1. Do the other thing.\n");
     expect(storedSidecarContent($principalId, 'alpha', 'notes.md'))->toBe('Revised notes.');
+});
+
+it('records when the rollback copy was taken, so the desk can say what it restores', function (): void {
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    makeSkill($writer, $principalId, 'alpha', ['body' => "# Original\n"]);
+    $updated = $writer->update('alpha', $principalId, $userId, [
+        'body' => "# Revised\n",
+    ], CustomSkill::PROVENANCE_HUMAN);
+
+    // The desk's restore label is built from this. It is deliberately not part of
+    // the restored content: `WRITABLE_COLUMNS` drops it on the way back in.
+    expect($updated->previous_snapshot)->toHaveKey('captured_at')
+        ->and($updated->previous_snapshot)->toHaveKey('captured_by')
+        ->and($updated->previous_snapshot['captured_by'])->toBe($userId);
+
+    $restored = $writer->restore('alpha', $principalId, $userId, CustomSkill::PROVENANCE_HUMAN);
+    // Restoring must not write the bookkeeping keys onto the skill row.
+    expect($restored->getAttributes())->not->toHaveKey('captured_at');
 });
 
 it('refuses to restore a skill that has no previous version', function (): void {
