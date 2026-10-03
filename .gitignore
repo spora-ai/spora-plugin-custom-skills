@@ -2,6 +2,14 @@
 /.phpunit.cache/
 /.phpunit.result.cache
 /.php-cs-fixer.cache
-/.worktrees/
+/coverage.xml
+/.idea/
+/.vscode/
+/.DS_Store
+/composer.phar
+/build/
+/public/
+.phpstan-cache/
+/:memory:
 
 /tmp/

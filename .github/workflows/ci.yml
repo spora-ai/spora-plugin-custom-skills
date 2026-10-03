@@ -15,6 +15,23 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # `SkillProviderInterface` is not in a tagged spora-core release yet — it
+  # ships in the `feat/skill-providers` PR. `composer.json` resolves spora-core
+  # through a `path` repository so the plugin can be developed against the
+  # branch, and the version is pinned in `options.versions` so the constraint
+  # is stable whichever branch the checkout is on. Once that core PR merges and
+  # is tagged, this repository entry is replaced by the `vcs` entry the
+  # other plugin repos use and this whole block goes away.
+  #
+  # `actions/checkout`'s `path:` is workspace-relative, so the core checkout
+  # lands *inside* this repo's workspace while the path repository is declared
+  # as `../spora-core` — a sibling, which is what local development has. Each
+  # job therefore symlinks the checkout to the sibling location before
+  # `composer install`; without it every job fails with
+  # `Source path "../spora-core" is not found`.
+  SPORA_CORE_REF: feat/skill-providers
+
 jobs:
   test:
     name: Pest (PHP ${{ matrix.php }})
@@ -26,6 +43,16 @@ jobs:
     steps:
       - name: Checkout plugin
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Checkout spora-core (path repository)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: spora-ai/spora-core
+          ref: ${{ env.SPORA_CORE_REF }}
+          path: spora-core
+
+      - name: Link spora-core to the sibling path the lock expects
+        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
@@ -39,7 +66,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Run Pest
-        run: ./vendor/bin/pest
+        run: ./vendor/bin/pest --parallel --processes=auto --max-batch-size=50
 
   static-analysis:
     name: PHPStan
@@ -47,6 +74,16 @@ jobs:
     steps:
       - name: Checkout plugin
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Checkout spora-core (path repository)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: spora-ai/spora-core
+          ref: ${{ env.SPORA_CORE_REF }}
+          path: spora-core
+
+      - name: Link spora-core to the sibling path the lock expects
+        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
@@ -59,7 +96,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Run PHPStan
-        run: ./vendor/bin/phpstan analyse --no-progress
+        run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
 
   code-style:
     name: php-cs-fixer (dry-run)
@@ -67,6 +104,16 @@ jobs:
     steps:
       - name: Checkout plugin
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Checkout spora-core (path repository)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: spora-ai/spora-core
+          ref: ${{ env.SPORA_CORE_REF }}
+          path: spora-core
+
+      - name: Link spora-core to the sibling path the lock expects
+        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
@@ -79,5 +126,86 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Check code style
-        # Same ruleset as Spora core's .php-cs-fixer.php so plugin style matches host.
+        # Same ruleset as spora-core's .php-cs-fixer.php so plugin style matches host.
         run: ./vendor/bin/php-cs-fixer fix --dry-run --diff --no-interaction
+
+  coverage:
+    name: Coverage (clover)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Checkout spora-core (path repository)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: spora-ai/spora-core
+          ref: ${{ env.SPORA_CORE_REF }}
+          path: spora-core
+
+      - name: Link spora-core to the sibling path the lock expects
+        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
+        with:
+          php-version: '8.4'
+          extensions: curl, mbstring
+          coverage: xdebug
+          tools: composer
+
+      - name: Composer install
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run Pest with coverage
+        run: XDEBUG_MODE=coverage ./vendor/bin/pest --coverage-clover=coverage.xml --coverage-filter=src --parallel --processes=auto --max-batch-size=50
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-clover
+          path: coverage.xml
+          if-no-files-found: error
+
+  sonar:
+    name: SonarQube
+    needs: [coverage]
+    # `always()` so the scanner still runs when the coverage job fails, giving
+    # SonarCloud a "previous version" baseline for the next push to main.
+    # Fork PRs are skipped — secrets aren't available there and the job would
+    # fail noisily.
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository)
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage
+        # Absent when the coverage job fails. The scanner still runs, without
+        # coverage data.
+        continue-on-error: true
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: coverage-clover
+          path: .
+
+      - name: SonarQube scan
+        # Same pin as spora-plugin-memories / spora-frontend, verified against a
+        # green run there. `gh api repos/SonarSource/sonarqube-scan-action/git/ref/tags/v8.2.0`.
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=spora-ai
+            -Dsonar.projectKey=spora-ai_spora-plugin-custom-skills

@@ -1,33 +1,38 @@
 {
-    "name": "spora-ai/spora-plugin-skeleton",
-    "description": "Skeleton for Spora plugins — copy this repo to start a new one.",
+    "name": "spora-ai/spora-plugin-custom-skills",
+    "description": "Principal-scoped custom skills — UI + manage_skill tool, served through core's skill tool.",
     "type": "spora-plugin",
     "license": "MIT",
     "require": {
         "php": "^8.4.1",
-        "spora-ai/spora-core": "^0.28.0"
+        "spora-ai/spora-core": ">=0.29.0 <2.0.0 || @dev",
+        "spora-ai/spora-plugin-custom-skills-frontend": ">=0.1.0 <2.0.0"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.94",
+        "larastan/larastan": "^3.9",
         "mockery/mockery": "^1.6",
-        "pestphp/pest": "^4.0",
+        "pestphp/pest": "^5.0",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-mockery": "^2.0"
     },
     "autoload": {
         "psr-4": {
-            "Spora\\Plugins\\Skeleton\\": "src/"
+            "Spora\\Plugins\\CustomSkills\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Spora\\Plugins\\Skeleton\\Tests\\": "tests/"
+            "Spora\\Plugins\\CustomSkills\\Tests\\": "tests/"
         }
     },
     "scripts": {
         "test": "pest",
-        "analyse": "phpstan analyse --no-progress",
-        "lint": "php-cs-fixer fix --dry-run --diff --no-interaction"
+        "test:parallel": "pest --parallel --processes=auto --max-batch-size=50",
+        "test:coverage:clover": "XDEBUG_MODE=coverage pest --coverage-clover=coverage.xml --parallel --processes=auto --max-batch-size=50",
+        "analyse": "phpstan analyse --no-progress --memory-limit=512M",
+        "lint": "php-cs-fixer fix --dry-run --diff --no-interaction",
+        "format": "php-cs-fixer fix --no-interaction"
     },
     "config": {
         "optimize-autoloader": true,
@@ -37,6 +42,22 @@
             "spora-ai/installer": true
         }
     },
-    "minimum-stability": "stable",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../spora-core",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "spora-ai/spora-core": "0.29.0"
+                }
+            }
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/spora-ai/spora-plugin-custom-skills-frontend.git"
+        }
+    ],
+    "minimum-stability": "dev",
     "prefer-stable": true
 }
