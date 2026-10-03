@@ -308,7 +308,6 @@ it('returns every contract key from show(), with SKILL.md first and metadata an 
     $skill = makeSkill($this->writer, $principalId, 'invoice-drafting', [
         'license'       => 'MIT',
         'compatibility' => 'spora>=0.29',
-        'allowed_tools' => 'read_email, send_email',
         'metadata'      => ['tier' => 'pro'],
     ]);
     seedSidecar((int) $skill->id, 'examples/invoice.md', "Sample.\n");
@@ -319,7 +318,7 @@ it('returns every contract key from show(), with SKILL.md first and metadata an 
     expect($response->getStatusCode())->toBe(200)
         ->and(array_keys($payload))->toBe([
             'id', 'principal_id', 'name', 'slug', 'description', 'license', 'compatibility',
-            'allowed_tools', 'metadata', 'body', 'body_bytes', 'provenance',
+            'metadata', 'body', 'body_bytes', 'provenance',
             'created_by_user_id', 'updated_by_user_id', 'created_at', 'updated_at',
             'files', 'has_previous', 'previous_at', 'previous_by', 'warnings', 'warning_count',
         ])
@@ -330,7 +329,6 @@ it('returns every contract key from show(), with SKILL.md first and metadata an 
         ->and($payload['slug'])->toBe($payload['name'])
         ->and($payload['license'])->toBe('MIT')
         ->and($payload['compatibility'])->toBe('spora>=0.29')
-        ->and($payload['allowed_tools'])->toBe('read_email, send_email')
         // An object on the wire, not a PHP-empty array serialised as `[]`.
         ->and(json_encode($payload['metadata']))->toBe('{"tier":"pro"}')
         ->and($payload['body'])->toBe("# Steps\n\n1. Do the thing.\n")

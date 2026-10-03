@@ -14,7 +14,7 @@ interface CustomSkillWriterInterface
 {
     /**
      * @param array<string, mixed> $input `name`, `description`, `body`, and optionally
-     *        `license`, `compatibility`, `allowed_tools`, `metadata` and `files`.
+     *        `license`, `compatibility`, `metadata` and `files`.
      *
      * @throws \Spora\Plugins\CustomSkills\Exceptions\CustomSkillException
      */

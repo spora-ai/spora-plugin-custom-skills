@@ -33,7 +33,6 @@ final class CustomSkillResource
             'description'        => $skill->description,
             'license'            => $skill->license,
             'compatibility'      => $skill->compatibility,
-            'allowed_tools'      => $skill->allowed_tools,
             // The contract says `metadata` is always an object; an empty PHP array encodes
             // as `[]`, and `stdClass` is the only way to emit `{}`.
             'metadata'           => $skill->metadata === null || $skill->metadata === []

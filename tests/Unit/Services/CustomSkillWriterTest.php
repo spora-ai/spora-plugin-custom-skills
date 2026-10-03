@@ -234,7 +234,6 @@ it('snapshots the pre-update frontmatter, body and files', function (): void {
         'description'   => 'A test skill named alpha.',
         'license'       => null,
         'compatibility' => null,
-        'allowed_tools' => null,
         'metadata'      => null,
         'body'          => "# Original\n\n1. Do the thing.\n",
         'files'         => ['notes.md' => 'Original notes.'],
@@ -557,11 +556,21 @@ it('strips files before validating the frontmatter', function (): void {
         ->and(array_keys($frontmatter))->toBe(['name', 'description']);
 });
 
-it('stores allowed_tools on the column and emits it as allowed-tools', function (): void {
+it('drops allowed_tools from a write, but still emits a hand-set column as allowed-tools', function (): void {
+    // The field is retired from the write path; the composer's emission is the
+    // spec-compat read bridge, so a row that carried the value before the change
+    // must still round-trip it to the model.
     ['principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
-    $skill = makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'read_email, send_email']);
+    $written = makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'read_email, send_email']);
+
+    expect($written->allowed_tools)->toBeNull()
+        ->and(skillComposer()->frontmatter($written))->not->toHaveKey('allowed-tools');
+
+    $skill = CustomSkill::query()->findOrFail($written->id);
+    $skill->forceFill(['allowed_tools' => 'read_email, send_email'])->save();
+    $skill->refresh();
 
     $frontmatter = skillComposer()->frontmatter($skill);
 

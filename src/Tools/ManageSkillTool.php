@@ -58,7 +58,6 @@ use Spora\Tools\ValueObjects\ToolResult;
 #[ToolParameter(name: 'body', type: 'string', description: 'The skill itself, as markdown. The procedure, the constraints, the examples. This is loaded into context in full, so be specific rather than exhaustive.', required: ['create', 'update'])]
 #[ToolParameter(name: 'license', type: 'string', description: 'License identifier, e.g. "MIT".', required: false)]
 #[ToolParameter(name: 'compatibility', type: 'string', description: 'Version constraint the skill applies to, e.g. "spora>=0.29".', required: false)]
-#[ToolParameter(name: 'allowed_tools', type: 'string', description: 'Space-separated tool names the skill needs, e.g. "read_email send_email" — the format the skill spec uses for allowed-tools.', required: false)]
 #[ToolParameter(name: 'metadata', type: 'object', description: 'Extra frontmatter as scalar key/value pairs.', required: false)]
 #[ToolParameter(name: 'files', type: 'object', description: 'Sidecar files as path => content. Replaces the entire existing set, so include the files that should survive. Not needed for a SKILL.md-only skill.', required: false)]
 final class ManageSkillTool extends AbstractTool

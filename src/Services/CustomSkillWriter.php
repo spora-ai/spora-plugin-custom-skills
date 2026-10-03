@@ -33,7 +33,6 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         'description',
         'license',
         'compatibility',
-        'allowed_tools',
         'metadata',
         'body',
     ];
@@ -269,7 +268,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         if (array_key_exists('metadata', $attributes)) {
             $attributes['metadata'] = $this->normalisedMetadata($attributes['metadata']);
         }
-        foreach (['license', 'compatibility', 'allowed_tools'] as $key) {
+        foreach (['license', 'compatibility'] as $key) {
             if (array_key_exists($key, $attributes)) {
                 $value = $attributes[$key] === null ? null : trim((string) $attributes[$key]);
                 $attributes[$key] = $value === '' ? null : $value;
@@ -493,7 +492,6 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
             'description'    => $skill->description,
             'license'        => $skill->license,
             'compatibility'  => $skill->compatibility,
-            'allowed_tools'  => $skill->allowed_tools,
             'metadata'       => $skill->metadata,
             'body'           => $skill->body,
         ];
