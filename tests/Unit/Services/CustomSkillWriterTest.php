@@ -556,27 +556,116 @@ it('strips files before validating the frontmatter', function (): void {
         ->and(array_keys($frontmatter))->toBe(['name', 'description']);
 });
 
-it('drops allowed_tools from a write, but still emits a hand-set column as allowed-tools', function (): void {
-    // The field is retired from the write path; the composer's emission is the
-    // spec-compat read bridge, so a row that carried the value before the change
-    // must still round-trip it to the model.
+it('stores allowed_tools on the column and emits it as allowed-tools', function (): void {
+    // The plugin is storage, core is judgement: the string reaches the column unchanged and
+    // comes back out of the composer under the hyphenated key the spec and core's validator
+    // agree on.
     ['principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
-    $written = makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'read_email, send_email']);
-
-    expect($written->allowed_tools)->toBeNull()
-        ->and(skillComposer()->frontmatter($written))->not->toHaveKey('allowed-tools');
-
-    $skill = CustomSkill::query()->findOrFail($written->id);
-    $skill->forceFill(['allowed_tools' => 'read_email, send_email'])->save();
-    $skill->refresh();
+    $skill = makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'read_email, send_email']);
 
     $frontmatter = skillComposer()->frontmatter($skill);
 
     expect($skill->allowed_tools)->toBe('read_email, send_email')
+        ->and($skill->refresh()->allowed_tools)->toBe('read_email, send_email')
         ->and($frontmatter['allowed-tools'])->toBe('read_email, send_email')
         ->and($frontmatter)->not->toHaveKey('allowed_tools');
+});
+
+it('emits a hand-set allowed_tools column, whatever put it there', function (): void {
+    // A row written before the field was writable, or set by anything that is not this
+    // writer, still has to surface through the composer.
+    ['principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    $written = makeSkill($writer, $principalId, 'alpha');
+    $skill = CustomSkill::query()->findOrFail($written->id);
+    $skill->forceFill(['allowed_tools' => 'email:read_inbox'])->save();
+
+    expect(skillComposer()->frontmatter($skill->refresh())['allowed-tools'])->toBe('email:read_inbox');
+});
+
+it('stores allowed_tools byte for byte, on create and on update', function (): void {
+    // Every character survives: a trim or a whitespace collapse here would rewrite the
+    // declaration before core's validator ever got to rule on it. An FQCN and a doubled
+    // space are both outside the grammar, and both are none of the plugin's business.
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    $declared = '  email:read_inbox,  Spora\Tools\ReadEmailTool  ';
+
+    $created = makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => $declared]);
+    $updated = $writer->update('alpha', $principalId, $userId, [
+        'description'   => 'A revised skill named alpha.',
+        'allowed_tools' => $declared,
+    ], CustomSkill::PROVENANCE_HUMAN);
+
+    expect($created->allowed_tools)->toBe($declared)
+        ->and($updated->allowed_tools)->toBe($declared)
+        ->and($updated->refresh()->allowed_tools)->toBe($declared)
+        ->and(skillComposer()->frontmatter($updated)['allowed-tools'])->toBe($declared);
+});
+
+it('keeps allowed_tools on an update that omits it, and clears it on an explicit null', function (): void {
+    // The desk's save payload always carries the key, so both readings have to be right:
+    // absent is "leave it alone", as for every other column; null is a revocation.
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'email:read_inbox']);
+
+    $untouched = $writer->update('alpha', $principalId, $userId, [
+        'description' => 'A revised skill named alpha.',
+    ], CustomSkill::PROVENANCE_HUMAN);
+    expect($untouched->refresh()->allowed_tools)->toBe('email:read_inbox');
+
+    $revoked = $writer->update('alpha', $principalId, $userId, [
+        'allowed_tools' => null,
+    ], CustomSkill::PROVENANCE_HUMAN);
+    expect($revoked->refresh()->allowed_tools)->toBeNull()
+        ->and(skillComposer()->frontmatter($revoked))->not->toHaveKey('allowed-tools');
+});
+
+it('does not roll allowed_tools back, so a revoked tool grant stays revoked', function (): void {
+    // A rollback puts the words back, not the permissions: silently re-granting what the
+    // author just took away is the worse of the two readings.
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    makeSkill($writer, $principalId, 'alpha', [
+        'body'          => "# Original\n\n1. Do the thing.\n",
+        'allowed_tools' => 'email:read_inbox email:send_email',
+    ]);
+    $writer->update('alpha', $principalId, $userId, [
+        'body'          => "# Revised\n\n1. Do the other thing.\n",
+        'allowed_tools' => 'email:read_inbox',
+    ], CustomSkill::PROVENANCE_HUMAN);
+
+    $restored = $writer->restore('alpha', $principalId, $userId, CustomSkill::PROVENANCE_HUMAN);
+
+    expect($restored->refresh()->body)->toBe("# Original\n\n1. Do the thing.\n")
+        ->and($restored->allowed_tools)->toBe('email:read_inbox')
+        ->and($restored->previous_snapshot)->not->toHaveKey('allowed_tools');
+});
+
+it('refuses a non-string allowed_tools with core\'s own error code', function (): void {
+    // Not a plugin rule: `SkillValidator` calls a non-string `allowed-tools` invalid, and
+    // `assertFrontmatter` runs the composed frontmatter, so the refusal arrives carrying
+    // the code core owns instead of reaching the TEXT column.
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    $refusal = refusal(fn() => $writer->create($principalId, $userId, [
+        'name'          => 'alpha',
+        'description'   => 'A test skill named alpha.',
+        'body'          => "# Steps\n\n1. Do the thing.\n",
+        'allowed_tools' => ['email:read_inbox'],
+    ], CustomSkill::PROVENANCE_HUMAN));
+
+    expect($refusal->errorCode)->toBe('SKILL_INVALID')
+        ->and(array_column($refusal->data['errors'], 'code'))->toBe(['ALLOWED_TOOLS_INVALID'])
+        ->and(CustomSkill::query()->forPrincipal($principalId)->where('name', 'alpha')->exists())->toBeFalse();
 });
 
 it('passes a frontmatter validation failure through with its errors', function (string $name): void {
