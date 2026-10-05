@@ -158,7 +158,8 @@ it('falls back to the agent\'s own principal when no context is supplied, never 
 
     expect($result->success)->toBeTrue()
         ->and(CustomSkill::query()->forPrincipal($groupPrincipalId)->count())->toBe(1)
-        // The failure D9 prevents: `$userId` would land a group agent's skills on whoever ran it.
+        // The failure D9 prevents: a group agent's skills must not land on the
+        // caller's own principal, which shares the agent's owner user id.
         ->and(CustomSkill::query()->forPrincipal($principalId)->count())->toBe(0);
 });
 
