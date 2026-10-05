@@ -308,6 +308,7 @@ it('returns every contract key from show(), with SKILL.md first and metadata an 
     $skill = makeSkill($this->writer, $principalId, 'invoice-drafting', [
         'license'       => 'MIT',
         'compatibility' => 'spora>=0.29',
+        'allowed_tools' => 'email:read_inbox',
         'metadata'      => ['tier' => 'pro'],
     ]);
     seedSidecar((int) $skill->id, 'examples/invoice.md', "Sample.\n");
@@ -318,7 +319,7 @@ it('returns every contract key from show(), with SKILL.md first and metadata an 
     expect($response->getStatusCode())->toBe(200)
         ->and(array_keys($payload))->toBe([
             'id', 'principal_id', 'name', 'slug', 'description', 'license', 'compatibility',
-            'metadata', 'body', 'body_bytes', 'provenance',
+            'allowed_tools', 'metadata', 'body', 'body_bytes', 'provenance',
             'created_by_user_id', 'updated_by_user_id', 'created_at', 'updated_at',
             'files', 'has_previous', 'previous_at', 'previous_by', 'warnings', 'warning_count',
         ])
@@ -329,6 +330,7 @@ it('returns every contract key from show(), with SKILL.md first and metadata an 
         ->and($payload['slug'])->toBe($payload['name'])
         ->and($payload['license'])->toBe('MIT')
         ->and($payload['compatibility'])->toBe('spora>=0.29')
+        ->and($payload['allowed_tools'])->toBe('email:read_inbox')
         // An object on the wire, not a PHP-empty array serialised as `[]`.
         ->and(json_encode($payload['metadata']))->toBe('{"tier":"pro"}')
         ->and($payload['body'])->toBe("# Steps\n\n1. Do the thing.\n")
@@ -360,6 +362,35 @@ it('serialises metadata as a JSON object, {} when unset', function (): void {
         ->and(skillData($set)['skill']['metadata'])->toBe(['tier' => 'pro'])
         ->and((string) $unset->getContent())->toContain('"metadata":{}')
         ->and(skillData($unset)['skill']['metadata'])->toBe([]);
+});
+
+it('persists allowed_tools from a POST and hands the same string back on a GET and a PUT', function (): void {
+    $userId = bootAuth($this->auth);
+    createUserPrincipal($userId);
+
+    // Not the grammar's happy path: an FQCN, a doubled space and a comma are what a
+    // hand-edited declaration looks like, and the plugin stores rather than judges.
+    $declared = '  email:read_inbox,  Spora\Tools\ReadEmailTool  ';
+
+    $created = $this->controller->store(jsonRequest('POST', '/api/v1/custom-skills', [
+        'name' => 'tool-skill', 'description' => 'Declares its tools.', 'body' => "# Steps\n\n1. Go.\n",
+        'allowed_tools' => $declared,
+    ]));
+
+    $shown = $this->controller->show(skillRequest('GET', '/api/v1/custom-skills/tool-skill', 'tool-skill'));
+    $revoked = $this->controller->update(skillRequest('PUT', '/api/v1/custom-skills/tool-skill', 'tool-skill', [
+        'allowed_tools' => null,
+    ]));
+    $afterRevocation = $this->controller->show(
+        skillRequest('GET', '/api/v1/custom-skills/tool-skill', 'tool-skill'),
+    );
+
+    expect($created->getStatusCode())->toBe(201)
+        ->and(skillData($created)['skill']['allowed_tools'])->toBe($declared)
+        ->and(skillData($shown)['skill']['allowed_tools'])->toBe($declared)
+        // A null here is the client revoking, not a key the response happened to omit.
+        ->and(skillData($revoked)['skill']['allowed_tools'])->toBeNull()
+        ->and(skillData($afterRevocation)['skill']['allowed_tools'])->toBeNull();
 });
 
 it('stamps the acting user on the skill a REST write creates', function (): void {
