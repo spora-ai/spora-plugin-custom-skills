@@ -17,8 +17,8 @@ use Spora\Tools\SkillTool;
  * The LLM-facing surface: which operations are offered, which principal a write
  * lands on, and what the approval card and result text may say.
  *
- * `$userId` is the user who *triggered* a run — per D9 the wrong thing to derive a
- * principal from — but every write test passes one, so a fallback is caught.
+ * Every write test passes a `$userId` even though the tool never reads it, so a
+ * reintroduced fallback to it fails a test instead of passing quietly.
  */
 function toolGraph(): ManageSkillTool
 {
@@ -39,7 +39,6 @@ function toolGraph(): ManageSkillTool
  */
 function seededRunner(): array
 {
-    // `created_by_user_id` has an FK to `users`, so a real row must exist first.
     $userId = (int) Capsule::table('users')->insertGetId([
         'email'      => 'runner-' . bin2hex(random_bytes(4)) . '@spora.test',
         'username'   => null,
@@ -158,8 +157,8 @@ it('falls back to the agent\'s own principal when no context is supplied, never 
 
     expect($result->success)->toBeTrue()
         ->and(CustomSkill::query()->forPrincipal($groupPrincipalId)->count())->toBe(1)
-        // The failure D9 prevents: a group agent's skills must not land on the
-        // caller's own principal, which shares the agent's owner user id.
+        // D9: a group agent's skills must not land on the caller's principal, which
+        // shares its owner user id.
         ->and(CustomSkill::query()->forPrincipal($principalId)->count())->toBe(0);
 });
 
@@ -258,9 +257,7 @@ it('never renders the body into the description an operator approves', function 
 });
 
 it('omits an agent count from the delete description because describeAction never receives the principal', function (): void {
-    // No agent id and no `PrincipalContext` reach `describeAction()`, so the only
-    // principal id in reach is one the model supplied — a count from it would be
-    // unauthenticated as well as a cross-tenant disclosure.
+    // A count from that model-supplied id would be unauthenticated, not merely cross-tenant.
     ['groupPrincipalId' => $groupPrincipalId] = seededRunner();
 
     $described = toolGraph()->describeAction([

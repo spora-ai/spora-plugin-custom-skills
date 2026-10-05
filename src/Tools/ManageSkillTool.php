@@ -18,13 +18,12 @@ use Spora\Tools\ValueObjects\ToolResult;
 /**
  * Lets an agent author, revise and delete its own principal's skills.
  *
- * Write-only by design: reads are already gated by `allowed_skills` and the provider's
- * scoping, and a second read tool is one more way for a model to see a skill it was not
- * granted. `delete` ships `enabledByDefault: false`; every operation is approval-gated.
+ * Write-only by design: reads are gated by `allowed_skills` and the provider's scoping, so a
+ * second read tool is one more way for a model to see a skill it was not granted. `delete`
+ * ships `enabledByDefault: false` and every operation is approval-gated.
  *
- * Ownership comes from `PrincipalContext`, never from the legacy `$userId` argument: a user
- * id is not a principal id, so resolving the principal from one can land a group agent's
- * skills on whichever member's account happens to share that numeric id.
+ * Ownership comes from `PrincipalContext` or the agent, never from `$userId`: a user id is not
+ * a principal id, so it stamps the audit columns and nothing else.
  */
 #[Tool(
     name: 'manage_skill',
