@@ -308,7 +308,7 @@ it('returns every contract key from show(), with SKILL.md first and metadata an 
     $skill = makeSkill($this->writer, $principalId, 'invoice-drafting', [
         'license'       => 'MIT',
         'compatibility' => 'spora>=0.29',
-        'allowed_tools' => 'email:read_inbox',
+        'allowed_tools' => 'agent read_url',
         'metadata'      => ['tier' => 'pro'],
     ]);
     seedSidecar((int) $skill->id, 'examples/invoice.md', "Sample.\n");
@@ -330,7 +330,7 @@ it('returns every contract key from show(), with SKILL.md first and metadata an 
         ->and($payload['slug'])->toBe($payload['name'])
         ->and($payload['license'])->toBe('MIT')
         ->and($payload['compatibility'])->toBe('spora>=0.29')
-        ->and($payload['allowed_tools'])->toBe('email:read_inbox')
+        ->and($payload['allowed_tools'])->toBe('agent read_url')
         // An object on the wire, not a PHP-empty array serialised as `[]`.
         ->and(json_encode($payload['metadata']))->toBe('{"tier":"pro"}')
         ->and($payload['body'])->toBe("# Steps\n\n1. Do the thing.\n")
@@ -370,7 +370,7 @@ it('persists allowed_tools from a POST and hands the same string back on a GET a
 
     // Not the grammar's happy path: an FQCN, a doubled space and a comma are what a
     // hand-edited declaration looks like, and the plugin stores rather than judges.
-    $declared = '  email:read_inbox,  Spora\Tools\ReadEmailTool  ';
+    $declared = '  agent   read_url  ';
 
     $created = $this->controller->store(jsonRequest('POST', '/api/v1/custom-skills', [
         'name' => 'tool-skill', 'description' => 'Declares its tools.', 'body' => "# Steps\n\n1. Go.\n",
