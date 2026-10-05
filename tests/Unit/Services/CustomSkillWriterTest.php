@@ -563,27 +563,30 @@ it('stores allowed_tools on the column and emits it as allowed-tools', function 
     ['principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
-    $skill = makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'read_email, send_email']);
+    $skill = makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'agent read_url']);
 
     $frontmatter = skillComposer()->frontmatter($skill);
 
-    expect($skill->allowed_tools)->toBe('read_email, send_email')
-        ->and($skill->refresh()->allowed_tools)->toBe('read_email, send_email')
-        ->and($frontmatter['allowed-tools'])->toBe('read_email, send_email')
+    expect($skill->allowed_tools)->toBe('agent read_url')
+        ->and($skill->refresh()->allowed_tools)->toBe('agent read_url')
+        ->and($frontmatter['allowed-tools'])->toBe('agent read_url')
         ->and($frontmatter)->not->toHaveKey('allowed_tools');
 });
 
 it('emits a hand-set allowed_tools column, whatever put it there', function (): void {
     // A row written before the field was writable, or set by anything that is not this
-    // writer, still has to surface through the composer.
+    // writer, still has to surface through the composer. The value is a legal one because
+    // this writer now validates: a row can still hold a legacy FQCN or comma list, but it
+    // cannot be written here, so the composer's pass-through is asserted on a value that
+    // gets that far.
     ['principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
     $written = makeSkill($writer, $principalId, 'alpha');
     $skill = CustomSkill::query()->findOrFail($written->id);
-    $skill->forceFill(['allowed_tools' => 'email:read_inbox'])->save();
+    $skill->forceFill(['allowed_tools' => 'media calculator'])->save();
 
-    expect(skillComposer()->frontmatter($skill->refresh())['allowed-tools'])->toBe('email:read_inbox');
+    expect(skillComposer()->frontmatter($skill->refresh())['allowed-tools'])->toBe('media calculator');
 });
 
 it('stores allowed_tools byte for byte, on create and on update', function (): void {
@@ -593,7 +596,7 @@ it('stores allowed_tools byte for byte, on create and on update', function (): v
     ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
-    $declared = '  email:read_inbox,  Spora\Tools\ReadEmailTool  ';
+    $declared = '  agent   read_url  ';
 
     $created = makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => $declared]);
     $updated = $writer->update('alpha', $principalId, $userId, [
@@ -613,12 +616,12 @@ it('keeps allowed_tools on an update that omits it, and clears it on an explicit
     ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
-    makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'email:read_inbox']);
+    makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'media calculator']);
 
     $untouched = $writer->update('alpha', $principalId, $userId, [
         'description' => 'A revised skill named alpha.',
     ], CustomSkill::PROVENANCE_HUMAN);
-    expect($untouched->refresh()->allowed_tools)->toBe('email:read_inbox');
+    expect($untouched->refresh()->allowed_tools)->toBe('media calculator');
 
     $revoked = $writer->update('alpha', $principalId, $userId, [
         'allowed_tools' => null,
@@ -635,17 +638,17 @@ it('does not roll allowed_tools back, so a revoked tool grant stays revoked', fu
 
     makeSkill($writer, $principalId, 'alpha', [
         'body'          => "# Original\n\n1. Do the thing.\n",
-        'allowed_tools' => 'email:read_inbox email:send_email',
+        'allowed_tools' => 'agent read_url media',
     ]);
     $writer->update('alpha', $principalId, $userId, [
         'body'          => "# Revised\n\n1. Do the other thing.\n",
-        'allowed_tools' => 'email:read_inbox',
+        'allowed_tools' => 'media calculator',
     ], CustomSkill::PROVENANCE_HUMAN);
 
     $restored = $writer->restore('alpha', $principalId, $userId, CustomSkill::PROVENANCE_HUMAN);
 
     expect($restored->refresh()->body)->toBe("# Original\n\n1. Do the thing.\n")
-        ->and($restored->allowed_tools)->toBe('email:read_inbox')
+        ->and($restored->allowed_tools)->toBe('media calculator')
         ->and($restored->previous_snapshot)->not->toHaveKey('allowed_tools');
 });
 
@@ -660,7 +663,7 @@ it('refuses a non-string allowed_tools with core\'s own error code', function ()
         'name'          => 'alpha',
         'description'   => 'A test skill named alpha.',
         'body'          => "# Steps\n\n1. Do the thing.\n",
-        'allowed_tools' => ['email:read_inbox'],
+        'allowed_tools' => ['media calculator'],
     ], CustomSkill::PROVENANCE_HUMAN));
 
     expect($refusal->errorCode)->toBe('SKILL_INVALID')
