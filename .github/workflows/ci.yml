@@ -30,18 +30,20 @@ env:
   # job therefore symlinks the checkout to the sibling location before
   # `composer install`; without it every job fails with
   # `Source path "../spora-core" is not found`.
-  # This is a typo fix, and the ref cannot be a release tag: the plugin
-  # implements Spora\Skills\SkillProviderInterface, which does not exist in
-  # v0.29.0 (app/Skills has 5 files there, 10 on this branch, including
-  # SkillDescriptor and Providers/FilesystemSkillProvider). It was
-  # `feat/skill-providers`, which is not a branch in spora-core, so the
-  # checkout failed and took all five dependent jobs down with it - on `main`
-  # as well as on every branch, since 2026-10-03.
+  # `main`, not a release tag and not a feature branch. The plugin implements
+  # Spora\Skills\SkillProviderInterface and calls SkillCatalogPresenter; neither
+  # exists in v0.29.0 (app/Skills has 5 files there), and neither feature branch
+  # carries SkillCatalogPresenter. Only main has both.
   #
-  # Moving to `main` once the skill-provider work lands there is the fix worth
-  # making; until then this tracks an unmerged branch, so deleting or rebasing
-  # it upstream will break this repo's CI without warning.
-  SPORA_CORE_REF: feat/skill-tool-uses-skill-providers
+  # It was `feat/skill-providers`, which is not a branch in spora-core at all, so
+  # the checkout failed and took every job needing a vendor dir down with it - on
+  # `main` as well as on every branch, since 2026-10-03.
+  #
+  # Tracking main means this repo's CI will go red when 0.30.0 drops
+  # ToolInterface::execute()'s $userId, because this plugin still declares the
+  # five-parameter signature. That break is accurate rather than spurious: it is
+  # the signal that the plugin needs its phase-2a change.
+  SPORA_CORE_REF: main
 
 jobs:
   test:
