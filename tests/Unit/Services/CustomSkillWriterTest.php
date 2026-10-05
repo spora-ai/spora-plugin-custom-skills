@@ -660,6 +660,65 @@ it('refuses a non-string allowed_tools with core\'s own error code', function ()
         ->and(CustomSkill::query()->forPrincipal($principalId)->where('name', 'alpha')->exists())->toBeFalse();
 });
 
+it('reads an empty allowed_tools as unset, not as a stored empty string', function (): void {
+    // `''` is absence, not a declaration. Stored verbatim it would be a third state:
+    // `''` on the wire, no `allowed-tools` in the synthesised `SKILL.md`, `requiredTools`
+    // empty — a value neither the null case nor the set case describes.
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    $skill = makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => '']);
+
+    expect($skill->allowed_tools)->toBeNull()
+        ->and($skill->refresh()->allowed_tools)->toBeNull()
+        ->and(skillComposer()->frontmatter($skill->refresh()))->not->toHaveKey('allowed-tools');
+});
+
+it('refuses an update that omits allowed_tools when the stored one is unreadable', function (): void {
+    // The live value is absent from the validation probe unless it is merged in, because
+    // `snapshotAttributes()` leaves it out. A row written before the grammar landed could
+    // then sit unreadable and report no warning, while every unrelated write passed.
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    $written = makeSkill($writer, $principalId, 'alpha');
+    CustomSkill::query()->findOrFail($written->id)
+        ->forceFill(['allowed_tools' => 'read_email, send_email'])->save();
+
+    $refusal = refusal(fn() => $writer->update('alpha', $principalId, $userId, [
+        'description' => 'A revised skill named alpha.',
+    ], CustomSkill::PROVENANCE_HUMAN));
+
+    expect($refusal->errorCode)->toBe('SKILL_INVALID')
+        ->and(array_column($refusal->data['errors'], 'code'))->toContain('ALLOWED_TOOLS_INVALID');
+})->skip(
+    ! class_exists(Spora\Skills\AllowedTools::class),
+    'Needs a core carrying the grammar: `read_email, send_email` is only rejected once '
+        . '`SkillValidator` can parse `allowed-tools`, and against `v0.29.0` the field is '
+        . 'checked for type alone.',
+);
+
+it('lets an update that omits allowed_tools through when the stored one is readable', function (): void {
+    // The counterpart, so the merge cannot be read as "revalidate and always fail": the
+    // probe carries the live value and the value is still left alone on the fill.
+    ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
+    ['writer' => $writer] = writerGraph();
+
+    makeSkill($writer, $principalId, 'alpha', ['allowed_tools' => 'agent read_url']);
+
+    $updated = $writer->update('alpha', $principalId, $userId, [
+        'description' => 'A revised skill named alpha.',
+    ], CustomSkill::PROVENANCE_HUMAN);
+
+    expect($updated->description)->toBe('A revised skill named alpha.')
+        ->and($updated->refresh()->allowed_tools)->toBe('agent read_url')
+        ->and($updated->previous_snapshot)->not->toHaveKey('allowed_tools');
+})->skip(
+    ! class_exists(Spora\Skills\AllowedTools::class),
+    'Same wait: against `v0.29.0` there is no grammar, so this would pass without proving '
+        . 'the probe merge is what let it through.',
+);
+
 it('passes a frontmatter validation failure through with its errors', function (string $name): void {
     ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
