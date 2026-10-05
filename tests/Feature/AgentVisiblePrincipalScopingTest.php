@@ -97,7 +97,6 @@ it('refuses to read another principal\'s custom skill even when the name is allo
         ['action' => 'read', 'name' => 'a-only'],
         $agentA,
         null,
-        null,
         contextForPrincipal($tenantA),
     );
     expect($own->success)->toBeTrue('the allowlist really does grant the agent its own skill');
@@ -105,7 +104,6 @@ it('refuses to read another principal\'s custom skill even when the name is allo
     $foreign = $tool->execute(
         ['action' => 'read', 'name' => 'b-only'],
         $agentA,
-        null,
         null,
         contextForPrincipal($tenantA),
     );
@@ -153,7 +151,6 @@ it('does not let a same-named skill in one tenant shadow the other in the listin
     $read  = $tool->execute(
         ['action' => 'read', 'name' => 'shared-name'],
         $agentA,
-        null,
         null,
         contextForPrincipal($tenantA),
     );
