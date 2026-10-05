@@ -33,10 +33,8 @@ final class CustomSkillResource
             'description'        => $skill->description,
             'license'            => $skill->license,
             'compatibility'      => $skill->compatibility,
-            // Snake case on the wire, as `license` and `compatibility` are; the hyphenated
-            // `allowed-tools` is the composer's frontmatter spelling. The desk's save
-            // payload always carries this key, so omitting it here would read back blank
-            // and the next unrelated save would null the column.
+            // The desk's save payload always carries this key, so omitting it reads back
+            // blank and the next unrelated save nulls the column.
             'allowed_tools'      => $skill->allowed_tools,
             // The contract says `metadata` is always an object; an empty PHP array encodes
             // as `[]`, and `stdClass` is the only way to emit `{}`.

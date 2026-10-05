@@ -134,16 +134,12 @@ final class CustomSkillProvider implements SkillProviderInterface
      * The `requiredTools` argument, spread, or nothing at all.
      *
      * `Spora\Skills\AllowedTools` is unreleased and this plugin resolves against
-     * `>=0.29.0`, so both the parse and the named argument are an `Error` on every
-     * released core — the hazard that keeps `#[Tool(recommendsSkills:)]` off
-     * `StaanSearchTool`. `class_exists` rather than a version compare because the
-     * parser and the two parameters it feeds land together, and probing a
-     * constructor would guard a fact rather than the capability.
+     * `>=0.29.0`, so an unguarded call is an `Error` on every released core. Guarded
+     * on `class_exists` rather than a version compare: the parser and the two
+     * parameters it feeds land together.
      *
-     * Absent, not locally re-parsed. `allowed_tools` has one grammar; a second
-     * implementation here is exactly the drift this change exists to end, and a
-     * core with no parser has no consumer for the value to be right about. The
-     * stored string is never touched — a projection for a consumer, not a rewrite.
+     * Absent, not locally re-parsed. `allowed_tools` has one grammar, and a core with
+     * no parser has no consumer for the value to be right about.
      *
      * @return array{requiredTools?: list<string>}
      */
