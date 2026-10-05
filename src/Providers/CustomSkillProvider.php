@@ -6,6 +6,7 @@ namespace Spora\Plugins\CustomSkills\Providers;
 
 use Spora\Plugins\CustomSkills\Models\CustomSkill;
 use Spora\Plugins\CustomSkills\Services\CustomSkillQueryInterface;
+use Spora\Skills\AllowedTools;
 use Spora\Skills\SkillDescriptor;
 use Spora\Skills\SkillProviderInterface;
 use Spora\Skills\SkillSummary;
@@ -56,6 +57,7 @@ final class CustomSkillProvider implements SkillProviderInterface
         $warnings = $this->query->warnings($skill);
 
         return new SkillDescriptor(
+            ...self::requiredToolsArgument($skill->allowed_tools),
             summary: $this->summaryOf($skill, $warnings !== []),
             body: $skill->body,
             compatibility: $skill->compatibility,
@@ -116,6 +118,7 @@ final class CustomSkillProvider implements SkillProviderInterface
         $warnings = $hasWarnings ?? $this->query->warnings($skill) !== [];
 
         return new SkillSummary(
+            ...self::requiredToolsArgument($skill->allowed_tools),
             name: $skill->name,
             description: $skill->description,
             license: $skill->license,
@@ -125,6 +128,32 @@ final class CustomSkillProvider implements SkillProviderInterface
             fileCount: count($this->query->fileListing($skill)),
             hasWarnings: $warnings,
         );
+    }
+
+    /**
+     * The `requiredTools` argument, spread, or nothing at all.
+     *
+     * `Spora\Skills\AllowedTools` is unreleased and this plugin resolves against
+     * `>=0.29.0`, so both the parse and the named argument are an `Error` on every
+     * released core — the hazard that keeps `#[Tool(recommendsSkills:)]` off
+     * `StaanSearchTool`. `class_exists` rather than a version compare because the
+     * parser and the two parameters it feeds land together, and probing a
+     * constructor would guard a fact rather than the capability.
+     *
+     * Absent, not locally re-parsed. `allowed_tools` has one grammar; a second
+     * implementation here is exactly the drift this change exists to end, and a
+     * core with no parser has no consumer for the value to be right about. The
+     * stored string is never touched — a projection for a consumer, not a rewrite.
+     *
+     * @return array{requiredTools?: list<string>}
+     */
+    private static function requiredToolsArgument(?string $raw): array
+    {
+        if ($raw === null || !class_exists(AllowedTools::class)) {
+            return [];
+        }
+
+        return ['requiredTools' => AllowedTools::names($raw)];
     }
 
     /**
