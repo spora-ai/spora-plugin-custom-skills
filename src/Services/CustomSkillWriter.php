@@ -26,9 +26,9 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
      * undeclared keys, so this list is the boundary; {@see CustomSkill::$fillable} is the
      * second layer. `files` is a relation, deliberately absent.
      *
-     * `allowed_tools` sat out of this list while nothing read it. It is back because a
-     * custom skill is only ever seen as its synthesised `SKILL.md`, so a value the column
-     * cannot take is a declaration core never sees.
+     * `allowed_tools` is writable because a custom skill is only ever seen as its
+     * synthesised `SKILL.md`: a value the column cannot take is a declaration core
+     * never sees.
      *
      * @var list<string>
      */
@@ -279,10 +279,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
                 $attributes[$key] = $value === '' ? null : $value;
             }
         }
-        // `allowed_tools` is deliberately not in the loop above: it is a space-separated
-        // tool list whose grammar is core's validator to judge, and the plugin is storage.
-        // Trimming or reformatting it here would rewrite a value core is entitled to
-        // reject, and `assertFrontmatter` is where a non-string one is refused anyway.
+        // `allowed_tools` stays out of the loop above: the plugin is storage, the tool-name
+        // grammar is core's validator to judge, and `assertFrontmatter` refuses a non-string.
 
         return $attributes;
     }
@@ -492,10 +490,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
-     * `allowed_tools` is absent deliberately: it is a capability, not content, and a
-     * rollback that re-granted tools the author has since revoked would be the worse of
-     * the two readings. A snapshot predating the field's reinstatement carries no such
-     * key either, so old and new rollbacks leave the column alone alike.
+     * `allowed_tools` is absent deliberately: a rollback restores content, not permissions,
+     * and silently re-granting a revoked tool is the worse reading.
      *
      * @return array<string, mixed>
      */

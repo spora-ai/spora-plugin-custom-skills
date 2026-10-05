@@ -20,13 +20,10 @@ parameters:
         # Pest's fluent API mutates the expectation in place, so `->not` and
         # friends are dynamic properties on a generic `Expectation<T>`.
         - '#Access to an undefined property Pest\\Mixins\\Expectation<#'
-        # `SkillSummary`/`SkillDescriptor` gained `requiredTools` in an
-        # unreleased core, and the dev pin is 0.29.0, so PHPStan reads a
-        # constructor that has no such parameter. The call site is guarded by
-        # `class_exists(Spora\Skills\AllowedTools::class)` and the argument is
-        # spread, so the argument is simply absent on this core. `reportUnmatched`
-        # because the entry becomes dead the day the pin moves past the release
-        # and PHPStan treats a never-matching pattern as an error on its own.
+        # `requiredTools` landed in an unreleased core while the pin is 0.29.0, so
+        # PHPStan reads a constructor that has no such parameter. The call site
+        # spreads the argument only when `AllowedTools` exists, so on this core it
+        # is absent — hence `reportUnmatched: false` once the pin moves past it.
         -
             message: '#^Unknown parameter \$requiredTools in call to Spora\\Skills\\Skill(Descriptor|Summary) constructor\.$#'
             reportUnmatched: false

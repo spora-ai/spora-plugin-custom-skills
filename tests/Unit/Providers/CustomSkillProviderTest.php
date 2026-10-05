@@ -230,29 +230,14 @@ it('runs the provider through a real registry without shadowing a shipped skill'
 });
 
 /*
-| `requiredTools`, the read side of `allowed_tools`
-|--------------------------------------------------------------------------
-|
-| The parsed form is core's to compute: `Spora\Skills\AllowedTools` owns the
-| grammar and the provider only projects. So this file straddles two core
-| versions, and the split is deliberate rather than a convenience — a test that
-| quietly stopped asserting on the pinned core would be green for the wrong
-| reason, which is how the empty `required_tools` shipped in the first place.
-|
-| The first test therefore runs everywhere and asserts what is true of *both*
-| cores: the declaration comes back byte-for-byte and the call sites construct
-| at all. That is the assertion that catches a dropped or inverted
-| `class_exists` guard, which is a fatal `Error` on a released core, not a wrong
-| value. The two that assert a populated list are skipped there, naming the
-| class they are waiting for.
-*/
+ * These tests straddle two core versions on purpose: one that quietly stopped
+ * asserting on the pinned core would be green for the wrong reason. So the first
+ * runs everywhere and asserts what holds on *both* cores; the two that need a
+ * populated list skip, naming the class they wait for.
+ */
 
 it('hands back the declaration byte-for-byte, and constructs on a core that cannot parse it', function (): void {
-    // Deliberately not a legal value: a doubled space and a leading pad. The
-    // column is storage and core is judgement, so a trim or a whitespace collapse
-    // here would rewrite a declaration before `AllowedTools` ever ruled on it —
-    // and on a core where `AllowedTools` does not exist, the two are the same
-    // code path, so this covers both the projection and the guard.
+    // Padding and a doubled space, so a trim or a whitespace collapse fails here.
     $config = toolConfig();
     $query = skillQuery();
     $principalId = createUserPrincipal(bootAuth(bootAuthLayer()));
@@ -265,8 +250,7 @@ it('hands back the declaration byte-for-byte, and constructs on a core that cann
     $descriptor = $provider->getSkillDetails('declared', $principalId);
     $summaries = $provider->getSkills($principalId);
 
-    // Both call sites built, on whichever core this suite resolved against. An
-    // unguarded `AllowedTools::names()` is an `Error: Class not found` right here.
+    // Both call sites constructed — an unguarded parse is an `Error` on a released core.
     expect($descriptor)->not->toBeNull()
         ->and($summaries)->toHaveCount(1)
         ->and($descriptor->allowedTools)->toBe($declared)
@@ -277,12 +261,9 @@ it('hands back the declaration byte-for-byte, and constructs on a core that cann
 /**
  * The `requiredTools` a shape carries, or null when the core declares no such field.
  *
- * Read through `get_object_vars` because the pinned core's `SkillDescriptor` and
- * `SkillSummary` do not have the property, and a direct read is a PHPStan
- * `property.notFound` there. It also gives the runtime question an honest answer:
- * a core that does not carry the field has no projection to report, which is why
- * the tests below skip rather than read `[]` — `[]` is exactly what a broken
- * projection looks like, and this helper would hand both the same value.
+ * `get_object_vars` because the pinned core's shapes lack the property and a direct
+ * read is a PHPStan `property.notFound`. Null rather than `[]`, so a core without the
+ * field stays distinguishable from a broken projection, which looks exactly like `[]`.
  *
  * @return list<string>|null
  */
@@ -294,9 +275,7 @@ function declaredToolNames(object $shape): ?array
 }
 
 it('projects the parsed names onto the descriptor and the summary alike', function (): void {
-    // Both, because the host UI reads the summary off the list endpoint and the
-    // descriptor off the detail one, and a skill that populated only the detail
-    // view would report nothing on `GET /api/v1/skills`.
+    // Both routes: a skill populating only the detail view reports nothing on the list.
     $config = toolConfig();
     $query = skillQuery();
     $principalId = createUserPrincipal(bootAuth(bootAuthLayer()));
@@ -311,7 +290,6 @@ it('projects the parsed names onto the descriptor and the summary alike', functi
     expect(declaredToolNames($descriptor))->toBe(['agent', 'read_url'])
         ->and(declaredToolNames($descriptor->summary))->toBe(['agent', 'read_url'])
         ->and(declaredToolNames($summaries[0]))->toBe(['agent', 'read_url'])
-        // The raw string is still there for a consumer that wants the spec form.
         ->and($descriptor->allowedTools)->toBe('agent read_url');
 })->skip(
     ! class_exists(AllowedTools::class),
@@ -322,8 +300,7 @@ it('projects the parsed names onto the descriptor and the summary alike', functi
 );
 
 it('declares no tools for a skill that sets none, rather than reaching for a default', function (): void {
-    // The null case, which is the common one: most skills never set the column,
-    // and an absent declaration must not become a parse of `''` or a stray entry.
+    // The common case: an absent declaration must not become a parse of `''`.
     $config = toolConfig();
     $query = skillQuery();
     $principalId = createUserPrincipal(bootAuth(bootAuthLayer()));

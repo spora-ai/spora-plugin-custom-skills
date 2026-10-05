@@ -368,8 +368,7 @@ it('persists allowed_tools from a POST and hands the same string back on a GET a
     $userId = bootAuth($this->auth);
     createUserPrincipal($userId);
 
-    // Not the grammar's happy path: an FQCN, a doubled space and a comma are what a
-    // hand-edited declaration looks like, and the plugin stores rather than judges.
+    // Deliberately non-canonical, so any normalisation fails the assertion.
     $declared = '  agent   read_url  ';
 
     $created = $this->controller->store(jsonRequest('POST', '/api/v1/custom-skills', [
@@ -388,7 +387,7 @@ it('persists allowed_tools from a POST and hands the same string back on a GET a
     expect($created->getStatusCode())->toBe(201)
         ->and(skillData($created)['skill']['allowed_tools'])->toBe($declared)
         ->and(skillData($shown)['skill']['allowed_tools'])->toBe($declared)
-        // A null here is the client revoking, not a key the response happened to omit.
+        // Null here is the client revoking, not a key the response happened to omit.
         ->and(skillData($revoked)['skill']['allowed_tools'])->toBeNull()
         ->and(skillData($afterRevocation)['skill']['allowed_tools'])->toBeNull();
 });

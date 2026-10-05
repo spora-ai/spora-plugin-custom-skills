@@ -557,9 +557,7 @@ it('strips files before validating the frontmatter', function (): void {
 });
 
 it('stores allowed_tools on the column and emits it as allowed-tools', function (): void {
-    // The plugin is storage, core is judgement: the string reaches the column unchanged and
-    // comes back out of the composer under the hyphenated key the spec and core's validator
-    // agree on.
+    // Storage is not judgement: the string reaches the column and the composer unchanged.
     ['principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
@@ -574,11 +572,7 @@ it('stores allowed_tools on the column and emits it as allowed-tools', function 
 });
 
 it('emits a hand-set allowed_tools column, whatever put it there', function (): void {
-    // A row written before the field was writable, or set by anything that is not this
-    // writer, still has to surface through the composer. The value is a legal one because
-    // this writer now validates: a row can still hold a legacy FQCN or comma list, but it
-    // cannot be written here, so the composer's pass-through is asserted on a value that
-    // gets that far.
+    // A legacy row may hold a value this writer would now reject; the composer still passes it through.
     ['principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
@@ -590,9 +584,7 @@ it('emits a hand-set allowed_tools column, whatever put it there', function (): 
 });
 
 it('stores allowed_tools byte for byte, on create and on update', function (): void {
-    // Every character survives: a trim or a whitespace collapse here would rewrite the
-    // declaration before core's validator ever got to rule on it. An FQCN and a doubled
-    // space are both outside the grammar, and both are none of the plugin's business.
+    // Every character survives: a trim or a whitespace collapse rewrites the declaration.
     ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
@@ -611,8 +603,7 @@ it('stores allowed_tools byte for byte, on create and on update', function (): v
 });
 
 it('keeps allowed_tools on an update that omits it, and clears it on an explicit null', function (): void {
-    // The desk's save payload always carries the key, so both readings have to be right:
-    // absent is "leave it alone", as for every other column; null is a revocation.
+    // Absent means "leave it alone"; an explicit null is a revocation.
     ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
@@ -631,8 +622,7 @@ it('keeps allowed_tools on an update that omits it, and clears it on an explicit
 });
 
 it('does not roll allowed_tools back, so a revoked tool grant stays revoked', function (): void {
-    // A rollback puts the words back, not the permissions: silently re-granting what the
-    // author just took away is the worse of the two readings.
+    // A rollback restores content, not permissions.
     ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 
@@ -653,9 +643,8 @@ it('does not roll allowed_tools back, so a revoked tool grant stays revoked', fu
 });
 
 it('refuses a non-string allowed_tools with core\'s own error code', function (): void {
-    // Not a plugin rule: `SkillValidator` calls a non-string `allowed-tools` invalid, and
-    // `assertFrontmatter` runs the composed frontmatter, so the refusal arrives carrying
-    // the code core owns instead of reaching the TEXT column.
+    // `SkillValidator` owns this refusal: `assertFrontmatter` runs the composed frontmatter,
+    // so the error arrives carrying core's code instead of reaching the column.
     ['userId' => $userId, 'principalId' => $principalId] = seededPrincipal();
     ['writer' => $writer] = writerGraph();
 

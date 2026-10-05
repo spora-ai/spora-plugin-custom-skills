@@ -24,8 +24,8 @@ final class SkillComposer
      * Core's validator expects the hyphenated `allowed-tools`; the column is
      * `allowed_tools`. The rename happens here, the boundary both sides agree on.
      *
-     * The column is emitted verbatim: the tool-name grammar is core's validator to judge,
-     * not the storage's to tidy.
+     * Emitted verbatim: the tool-name grammar is core's validator to judge, not
+     * the storage's to tidy.
      *
      * @return array<string, mixed>
      */
