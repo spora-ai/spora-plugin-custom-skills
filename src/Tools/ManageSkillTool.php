@@ -18,12 +18,12 @@ use Spora\Tools\ValueObjects\ToolResult;
 /**
  * Lets an agent author, revise and delete its own principal's skills.
  *
- * Write-only by design: reads are already gated by `allowed_skills` and the provider's
- * scoping, and a second read tool is one more way for a model to see a skill it was not
- * granted. `delete` ships `enabledByDefault: false`; every operation is approval-gated.
+ * Write-only by design: reads are gated by `allowed_skills` and the provider's scoping, so a
+ * second read tool is one more way for a model to see a skill it was not granted. `delete`
+ * ships `enabledByDefault: false` and every operation is approval-gated.
  *
- * `$userId` is never used for scoping — in the tool-execute path it is the runner, so it
- * would write a group agent's skills onto whichever member triggered the run.
+ * Ownership comes from `PrincipalContext` or the agent, never from `$userId`: a user id is not
+ * a principal id, so it stamps the audit columns and nothing else.
  */
 #[Tool(
     name: 'manage_skill',
@@ -69,6 +69,9 @@ final class ManageSkillTool extends AbstractTool
         private readonly PrincipalResolver $principals,
     ) {}
 
+    /**
+     * @param int|null $userId @deprecated pass $context->ownerUserId instead; removed from the interface in core 0.30.0.
+     */
     public function execute(
         array $arguments,
         int $agentId,
@@ -76,6 +79,7 @@ final class ManageSkillTool extends AbstractTool
         ?int $taskId = null,
         ?PrincipalContext $context = null,
     ): ToolResult {
+        $ownerId = $context?->ownerUserId;
         $operation = (string) ($arguments['action'] ?? '');
         $name = trim((string) ($arguments['name'] ?? ''));
 
@@ -83,9 +87,9 @@ final class ManageSkillTool extends AbstractTool
             $principalId = $this->principalId($agentId, $context);
 
             return match ($operation) {
-                'create' => $this->create($principalId, $userId, $arguments, $name),
-                'update' => $this->update($principalId, $userId, $arguments, $name),
-                'delete' => $this->delete($principalId, $userId, $name),
+                'create' => $this->create($principalId, $ownerId, $arguments, $name),
+                'update' => $this->update($principalId, $ownerId, $arguments, $name),
+                'delete' => $this->delete($principalId, $ownerId, $name),
                 default => new ToolResult(false, "Invalid action '{$operation}'. Must be create, update, or delete."),
             };
         } catch (CustomSkillException $e) {

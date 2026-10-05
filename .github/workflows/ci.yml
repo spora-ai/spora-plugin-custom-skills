@@ -16,21 +16,21 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # `SkillProviderInterface` is not in a tagged spora-core release yet — it
-  # ships in the `feat/skill-providers` PR. `composer.json` resolves spora-core
-  # through a `path` repository so the plugin can be developed against the
-  # branch, and the version is pinned in `options.versions` so the constraint
-  # is stable whichever branch the checkout is on. Once that core PR merges and
-  # is tagged, this repository entry is replaced by the `vcs` entry the
-  # other plugin repos use and this whole block goes away.
+  # `main` is the only ref carrying both halves this plugin needs —
+  # `Spora\Skills\SkillProviderInterface` and `SkillCatalogPresenter` are in no
+  # tag and on no other branch. composer.json therefore still resolves spora-core
+  # through a `path` repository with a pinned version; the repository entry and this
+  # var both go when core tags the release carrying the seam.
   #
-  # `actions/checkout`'s `path:` is workspace-relative, so the core checkout
-  # lands *inside* this repo's workspace while the path repository is declared
-  # as `../spora-core` — a sibling, which is what local development has. Each
-  # job therefore symlinks the checkout to the sibling location before
-  # `composer install`; without it every job fails with
-  # `Source path "../spora-core" is not found`.
-  SPORA_CORE_REF: feat/skill-providers
+  # Tracking main means CI goes red when 0.30.0 drops `$userId` from
+  # `ToolInterface::execute()`, because the plugin still declares all five
+  # parameters. That red is the signal for the phase-2a change, not a reason to
+  # pin a ref.
+  #
+  # `path:` is workspace-relative, so the core checkout lands inside this
+  # workspace while composer.json declares `../spora-core`, a sibling — hence the
+  # symlink every job runs before `composer install`.
+  SPORA_CORE_REF: main
 
 jobs:
   test:
@@ -170,10 +170,8 @@ jobs:
   sonar:
     name: SonarQube
     needs: [coverage]
-    # `always()` so the scanner still runs when the coverage job fails, giving
-    # SonarCloud a "previous version" baseline for the next push to main.
-    # Fork PRs are skipped — secrets aren't available there and the job would
-    # fail noisily.
+    # `always()` so a failed coverage job still feeds SonarCloud a baseline. Fork PRs
+    # are skipped: no secrets there.
     if: |
       always() && (
         github.event_name == 'push' ||
@@ -191,8 +189,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download coverage
-        # Absent when the coverage job fails. The scanner still runs, without
-        # coverage data.
+        # Absent when the coverage job failed; the scan still runs, without data.
         continue-on-error: true
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
@@ -200,8 +197,7 @@ jobs:
           path: .
 
       - name: SonarQube scan
-        # Same pin as spora-plugin-memories / spora-frontend, verified against a
-        # green run there. `gh api repos/SonarSource/sonarqube-scan-action/git/ref/tags/v8.2.0`.
+        # Same pin as spora-plugin-memories / spora-frontend, green run there.
         uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
