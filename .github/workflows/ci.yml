@@ -15,9 +15,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  SPORA_CORE_REF: main
-
 jobs:
   test:
     name: Pest (PHP ${{ matrix.php }})
@@ -30,17 +27,6 @@ jobs:
       - name: Checkout plugin
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Checkout spora-core (path repository)
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          repository: spora-ai/spora-core
-          ref: ${{ env.SPORA_CORE_REF }}
-          path: spora-core
-
-      # checkout's `path:` is workspace-relative; the path repository resolves ../spora-core.
-      - name: Link spora-core to the sibling path the lock expects
-        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
-
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
         with:
@@ -49,8 +35,8 @@ jobs:
           coverage: none
           tools: composer
 
-      - name: Composer install
-        run: composer install --no-interaction --prefer-dist
+      - name: Composer update spora-core
+        run: composer update spora-ai/spora-core --with-all-dependencies --no-interaction --prefer-dist
 
       - name: Run Pest
         run: ./vendor/bin/pest --parallel --processes=auto --max-batch-size=50
@@ -62,17 +48,6 @@ jobs:
       - name: Checkout plugin
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Checkout spora-core (path repository)
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          repository: spora-ai/spora-core
-          ref: ${{ env.SPORA_CORE_REF }}
-          path: spora-core
-
-      # checkout's `path:` is workspace-relative; the path repository resolves ../spora-core.
-      - name: Link spora-core to the sibling path the lock expects
-        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
-
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
         with:
@@ -80,8 +55,8 @@ jobs:
           coverage: none
           tools: composer
 
-      - name: Composer install
-        run: composer install --no-interaction --prefer-dist
+      - name: Composer update spora-core
+        run: composer update spora-ai/spora-core --with-all-dependencies --no-interaction --prefer-dist
 
       - name: Run PHPStan
         run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
@@ -93,17 +68,6 @@ jobs:
       - name: Checkout plugin
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Checkout spora-core (path repository)
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          repository: spora-ai/spora-core
-          ref: ${{ env.SPORA_CORE_REF }}
-          path: spora-core
-
-      # checkout's `path:` is workspace-relative; the path repository resolves ../spora-core.
-      - name: Link spora-core to the sibling path the lock expects
-        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
-
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
         with:
@@ -111,8 +75,8 @@ jobs:
           coverage: none
           tools: composer
 
-      - name: Composer install
-        run: composer install --no-interaction --prefer-dist
+      - name: Composer update spora-core
+        run: composer update spora-ai/spora-core --with-all-dependencies --no-interaction --prefer-dist
 
       - name: Check code style
         # Same ruleset as spora-core's .php-cs-fixer.php so plugin style matches host.
@@ -125,17 +89,6 @@ jobs:
       - name: Checkout plugin
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Checkout spora-core (path repository)
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          repository: spora-ai/spora-core
-          ref: ${{ env.SPORA_CORE_REF }}
-          path: spora-core
-
-      # checkout's `path:` is workspace-relative; the path repository resolves ../spora-core.
-      - name: Link spora-core to the sibling path the lock expects
-        run: ln -sfn "$GITHUB_WORKSPACE/spora-core" "$GITHUB_WORKSPACE/../spora-core"
-
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
         with:
@@ -144,8 +97,8 @@ jobs:
           coverage: xdebug
           tools: composer
 
-      - name: Composer install
-        run: composer install --no-interaction --prefer-dist
+      - name: Composer update spora-core
+        run: composer update spora-ai/spora-core --with-all-dependencies --no-interaction --prefer-dist
 
       - name: Run Pest with coverage
         run: XDEBUG_MODE=coverage ./vendor/bin/pest --coverage-clover=coverage.xml --coverage-filter=src --parallel --processes=auto --max-batch-size=50

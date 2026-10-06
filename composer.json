@@ -44,16 +44,6 @@
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "../spora-core",
-            "options": {
-                "symlink": true,
-                "versions": {
-                    "spora-ai/spora-core": "0.30.0"
-                }
-            }
-        },
-        {
             "type": "vcs",
             "url": "https://github.com/spora-ai/spora-plugin-custom-skills-frontend.git"
         }
