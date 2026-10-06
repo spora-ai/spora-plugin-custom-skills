@@ -26,6 +26,10 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
      * undeclared keys, so this list is the boundary; {@see CustomSkill::$fillable} is the
      * second layer. `files` is a relation, deliberately absent.
      *
+     * `allowed_tools` is writable because a custom skill is only ever seen as its
+     * synthesised `SKILL.md`: a value the column cannot take is a declaration core
+     * never sees.
+     *
      * @var list<string>
      */
     private const WRITABLE_COLUMNS = [
@@ -33,6 +37,7 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         'description',
         'license',
         'compatibility',
+        'allowed_tools',
         'metadata',
         'body',
     ];
@@ -103,8 +108,17 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
         $files = $this->validatedFiles($input['files'] ?? null);
 
         $merged = array_merge($this->snapshotAttributes($skill), $this->columnAttributes($input, []));
+
+        // `snapshotAttributes()` omits `allowed_tools` — a rollback restores content, not
+        // permissions — so an update that leaves the key alone would validate frontmatter
+        // without it, and a declaration core cannot read would sit in the column reporting
+        // no warning. Validation only: the fill must not reintroduce a key the caller omitted.
+        $probe = array_key_exists('allowed_tools', $merged)
+            ? $merged
+            : $merged + ['allowed_tools' => $skill->allowed_tools];
+
         $this->assertTotalBudget($merged, $files);
-        $this->assertFrontmatter($name, $merged, $merged['body'] ?? '');
+        $this->assertFrontmatter($name, $probe, $probe['body'] ?? '');
 
         // Snapshot before `forceFill` — afterwards `restore()` would re-apply the
         // current state and the one-step undo would exist and do nothing.
@@ -273,6 +287,13 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
                 $value = $attributes[$key] === null ? null : trim((string) $attributes[$key]);
                 $attributes[$key] = $value === '' ? null : $value;
             }
+        }
+        // `''` is absence, not a declaration, and `license`/`compatibility` already read it
+        // that way. A stored value is left exactly as written — no trim, no collapse —
+        // because the grammar is core's validator to judge and `assertFrontmatter`
+        // refuses a non-string before it can reach the column.
+        if (($attributes['allowed_tools'] ?? null) === '') {
+            $attributes['allowed_tools'] = null;
         }
 
         return $attributes;
@@ -483,6 +504,9 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
+     * `allowed_tools` is absent deliberately: a rollback restores content, not permissions,
+     * and silently re-granting a revoked tool is the worse reading.
+     *
      * @return array<string, mixed>
      */
     private function snapshotAttributes(CustomSkill $skill): array

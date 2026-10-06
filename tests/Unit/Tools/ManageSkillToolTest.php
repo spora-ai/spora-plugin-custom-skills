@@ -17,8 +17,13 @@ use Spora\Tools\SkillTool;
  * The LLM-facing surface: which operations are offered, which principal a write
  * lands on, and what the approval card and result text may say.
  *
- * Every write test passes a `$userId` even though the tool never reads it, so a
- * reintroduced fallback to it fails a test instead of passing quietly.
+ * These tests used to plant a decoy `$userId` on every write, so that a
+ * reintroduced fallback to it would fail a test rather than pass quietly. That
+ * tripwire is gone: `execute()` no longer declares the parameter, so the
+ * fallback is not expressible at the call site. The guard moved from runtime to
+ * compile time - re-adding the parameter is now a PHPStan error against core
+ * 0.30.0's four-parameter interface, which is a stronger guarantee than the
+ * decoy was.
  */
 function toolGraph(): ManageSkillTool
 {
@@ -110,7 +115,6 @@ it('records a created skill as agent provenance', function (): void {
     $result = toolGraph()->execute(
         createArguments(),
         0,
-        $userId,
         null,
         new PrincipalContext($principalId, Principal::TYPE_USER, $userId, $userId),
     );
@@ -125,9 +129,9 @@ it('returns a failed result naming the taken-name code', function (): void {
     $tool = toolGraph();
     $context = new PrincipalContext($principalId, Principal::TYPE_USER, $userId, $userId);
 
-    expect($tool->execute(createArguments(), 0, $userId, null, $context)->success)->toBeTrue();
+    expect($tool->execute(createArguments(), 0, null, $context)->success)->toBeTrue();
 
-    $second = $tool->execute(createArguments(), 0, $userId, null, $context);
+    $second = $tool->execute(createArguments(), 0, null, $context);
 
     expect($second->success)->toBeFalse()
         ->and($second->content)->toContain('SKILL_NAME_TAKEN');
@@ -140,7 +144,6 @@ it('writes to the principal the execution context resolved', function (): void {
     $result = toolGraph()->execute(
         createArguments(),
         $agentId,
-        $userId,
         null,
         new PrincipalContext($groupPrincipalId, Principal::TYPE_GROUP, $userId, $userId),
     );
@@ -153,7 +156,7 @@ it('falls back to the agent\'s own principal when no context is supplied, never 
     ['userId' => $userId, 'principalId' => $principalId, 'groupPrincipalId' => $groupPrincipalId] = seededRunner();
     $agentId = createAgentForPrincipal($groupPrincipalId, 'Group Agent');
 
-    $result = toolGraph()->execute(createArguments(), $agentId, $userId, null, null);
+    $result = toolGraph()->execute(createArguments(), $agentId, null, null);
 
     expect($result->success)->toBeTrue()
         ->and(CustomSkill::query()->forPrincipal($groupPrincipalId)->count())->toBe(1)
@@ -169,7 +172,6 @@ it('ignores a principal_id argument naming a different principal', function (): 
     $result = toolGraph()->execute(
         createArguments('alpha', ['principal_id' => $principalId]),
         $agentId,
-        $userId,
         null,
         new PrincipalContext($groupPrincipalId, Principal::TYPE_GROUP, $userId, $userId),
     );
@@ -185,7 +187,6 @@ it('fails closed when the principal cannot be resolved', function (): void {
     $result = toolGraph()->execute(
         createArguments(),
         0,
-        $userId,
         null,
         new PrincipalContext(0, Principal::TYPE_USER, null, null),
     );
@@ -202,7 +203,6 @@ it('reads a sidecar written through files back through the provider', function (
     $result = toolGraph()->execute(
         createArguments('alpha', ['files' => ['examples/invoice.md' => "# Invoice"]]),
         0,
-        $userId,
         null,
         $context,
     );
@@ -221,10 +221,10 @@ it('names the agents whose allowlists a delete rewrote', function (): void {
     $config = toolConfig();
     $context = new PrincipalContext($groupPrincipalId, Principal::TYPE_GROUP, $userId, $userId);
 
-    toolGraph()->execute(createArguments(), $agentId, $userId, null, $context);
+    toolGraph()->execute(createArguments(), $agentId, null, $context);
     $config->putAgentOverride(SkillTool::class, $agentId, ['allowed_skills' => ['alpha']]);
 
-    $result = toolGraph()->execute(['action' => 'delete', 'name' => 'alpha'], $agentId, $userId, null, $context);
+    $result = toolGraph()->execute(['action' => 'delete', 'name' => 'alpha'], $agentId, null, $context);
 
     expect($result->success)->toBeTrue()
         ->and($result->content)->toContain("Invoicing Agent (#{$agentId})")
@@ -236,9 +236,9 @@ it('says plainly when no agent allowlist referenced the deleted skill', function
     $agentId = createAgentForPrincipal($groupPrincipalId, 'Invoicing Agent');
     $context = new PrincipalContext($groupPrincipalId, Principal::TYPE_GROUP, $userId, $userId);
 
-    toolGraph()->execute(createArguments(), $agentId, $userId, null, $context);
+    toolGraph()->execute(createArguments(), $agentId, null, $context);
 
-    $result = toolGraph()->execute(['action' => 'delete', 'name' => 'alpha'], $agentId, $userId, null, $context);
+    $result = toolGraph()->execute(['action' => 'delete', 'name' => 'alpha'], $agentId, null, $context);
 
     expect($result->success)->toBeTrue()
         ->and($result->content)->toContain('No agent allowlists referenced it.')
@@ -289,7 +289,6 @@ it('names the valid operations when the action is not one it knows', function ()
     $result = toolGraph()->execute(
         ['action' => 'fork', 'name' => 'alpha'],
         0,
-        $userId,
         null,
         new PrincipalContext($principalId, Principal::TYPE_USER, $userId, $userId),
     );

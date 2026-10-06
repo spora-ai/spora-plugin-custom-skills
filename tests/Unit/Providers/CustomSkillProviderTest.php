@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Spora\Plugins\CustomSkills\Providers\CustomSkillProvider;
 use Spora\Plugins\CustomSkills\Services\SkillComposer;
+use Spora\Skills\AllowedTools;
 use Spora\Skills\SkillProviderInterface;
 use Spora\Skills\SkillProviderRegistry;
 
@@ -227,6 +228,98 @@ it('runs the provider through a real registry without shadowing a shipped skill'
         ->and($registry->getSkillFile('mine', SkillComposer::ENTRY_FILE, $principalId))
         ->toContain('name: mine');
 });
+
+/*
+ * These tests straddle two core versions on purpose: one that quietly stopped
+ * asserting on the pinned core would be green for the wrong reason. So the first
+ * runs everywhere and asserts what holds on *both* cores; the two that need a
+ * populated list skip, naming the class they wait for.
+ */
+
+it('hands back the declaration byte-for-byte, and constructs on a core that cannot parse it', function (): void {
+    // Padding and a doubled space, so a trim or a whitespace collapse fails here.
+    $config = toolConfig();
+    $query = skillQuery();
+    $principalId = createUserPrincipal(bootAuth(bootAuthLayer()));
+    $declared = '  agent   read_url  ';
+    makeSkill(skillWriter($query, $config, skillRegistry($query)), $principalId, 'declared', [
+        'allowed_tools' => $declared,
+    ]);
+
+    $provider = new CustomSkillProvider($query);
+    $descriptor = $provider->getSkillDetails('declared', $principalId);
+    $summaries = $provider->getSkills($principalId);
+
+    // Both call sites constructed — an unguarded parse is an `Error` on a released core.
+    expect($descriptor)->not->toBeNull()
+        ->and($summaries)->toHaveCount(1)
+        ->and($descriptor->allowedTools)->toBe($declared)
+        ->and($descriptor->summary->name)->toBe('declared')
+        ->and($summaries[0]->name)->toBe('declared');
+});
+
+/**
+ * The `requiredTools` a shape carries, or null when the core declares no such field.
+ *
+ * `get_object_vars` because the pinned core's shapes lack the property and a direct
+ * read is a PHPStan `property.notFound`. Null rather than `[]`, so a core without the
+ * field stays distinguishable from a broken projection, which looks exactly like `[]`.
+ *
+ * @return list<string>|null
+ */
+function declaredToolNames(object $shape): ?array
+{
+    $value = get_object_vars($shape)['requiredTools'] ?? null;
+
+    return is_array($value) ? array_values($value) : null;
+}
+
+it('projects the parsed names onto the descriptor and the summary alike', function (): void {
+    // Both routes: a skill populating only the detail view reports nothing on the list.
+    $config = toolConfig();
+    $query = skillQuery();
+    $principalId = createUserPrincipal(bootAuth(bootAuthLayer()));
+    makeSkill(skillWriter($query, $config, skillRegistry($query)), $principalId, 'declared', [
+        'allowed_tools' => 'agent read_url',
+    ]);
+
+    $provider = new CustomSkillProvider($query);
+    $descriptor = $provider->getSkillDetails('declared', $principalId);
+    $summaries = $provider->getSkills($principalId);
+
+    expect(declaredToolNames($descriptor))->toBe(['agent', 'read_url'])
+        ->and(declaredToolNames($descriptor->summary))->toBe(['agent', 'read_url'])
+        ->and(declaredToolNames($summaries[0]))->toBe(['agent', 'read_url'])
+        ->and($descriptor->allowedTools)->toBe('agent read_url');
+})->skip(
+    ! class_exists(AllowedTools::class),
+    'Spora\Skills\AllowedTools is unreleased, so the pinned core has no `requiredTools` to '
+        . 'populate. Skipped, not asserted empty: an empty list is indistinguishable from '
+        . 'the bug this covers. Delete this guard once the plugin\'s core constraint admits a '
+        . 'release carrying the parser.',
+);
+
+it('declares no tools for a skill that sets none, rather than reaching for a default', function (): void {
+    // The common case: an absent declaration must not become a parse of `''`.
+    $config = toolConfig();
+    $query = skillQuery();
+    $principalId = createUserPrincipal(bootAuth(bootAuthLayer()));
+    makeSkill(skillWriter($query, $config, skillRegistry($query)), $principalId, 'undeclared');
+
+    $provider = new CustomSkillProvider($query);
+    $descriptor = $provider->getSkillDetails('undeclared', $principalId);
+    $summaries = $provider->getSkills($principalId);
+
+    expect(declaredToolNames($descriptor))->toBe([])
+        ->and(declaredToolNames($descriptor->summary))->toBe([])
+        ->and(declaredToolNames($summaries[0]))->toBe([])
+        ->and($descriptor->allowedTools)->toBeNull();
+})->skip(
+    ! class_exists(AllowedTools::class),
+    'Same wait as the test above: no `Spora\Skills\AllowedTools` on the pinned core, so there '
+        . 'is no `requiredTools` property to read. An unconditional `[]` here would pass on a '
+        . 'core where the projection is simply missing.',
+);
 
 it('hands a plugin a query that answers only for the requested principal', function (): void {
     // Guards the seam the provider depends on: losing the predicate returns every skill.

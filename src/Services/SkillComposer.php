@@ -24,9 +24,8 @@ final class SkillComposer
      * Core's validator expects the hyphenated `allowed-tools`; the column is
      * `allowed_tools`. The rename happens here, the boundary both sides agree on.
      *
-     * Nothing writes that column any more — the emission is the spec-compat read
-     * bridge, so a row that carried the value before the field was retired still
-     * round-trips it to the model.
+     * Emitted verbatim: the tool-name grammar is core's validator to judge, not
+     * the storage's to tidy.
      *
      * @return array<string, mixed>
      */
