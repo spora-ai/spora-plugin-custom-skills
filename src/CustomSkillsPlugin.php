@@ -12,6 +12,7 @@ use Spora\Plugins\AbstractPlugin;
 use Spora\Plugins\CustomSkills\Http\CustomSkillController;
 use Spora\Plugins\CustomSkills\Http\CustomSkillResource;
 use Spora\Plugins\CustomSkills\Providers\CustomSkillProvider;
+use Spora\Plugins\CustomSkills\Providers\CustomSkillSearchProvider;
 use Spora\Plugins\CustomSkills\Services\AllowedSkillsScrubber;
 use Spora\Plugins\CustomSkills\Services\AllowedSkillsScrubberInterface;
 use Spora\Plugins\CustomSkills\Services\CustomSkillQuery;
@@ -32,7 +33,8 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
  * Plugin entry point: the admin app, the `manage_skill` write tool (core's `skill` serves
- * the reads), a {@see SkillProviderInterface}, 9 REST routes, the migrations, the bindings.
+ * the reads), a {@see SkillProviderInterface}, the palette search provider, 9 REST routes,
+ * the migrations, the bindings.
  *
  * `skillPaths()` is deliberately not overridden: these skills live in the database and
  * the scan roots have no principal dimension.
@@ -126,6 +128,22 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
     public function skillProviders(): array
     {
         return [CustomSkillProvider::class];
+    }
+
+    /**
+     * Skill search moves here from core, which shipped a provider that could only
+     * build a link into a plugin's app and returned `href: null` for every skill core
+     * itself ships. This app has a page for a skill, so every hit is openable.
+     *
+     * Left out of {@see onContainerBuilding()} on purpose: the class is autowirable —
+     * its only argument is core's `SkillProviderRegistry` — and core resolves the
+     * merged list with `$container->get($class)` under the same autowiring.
+     *
+     * @return list<class-string<\Spora\Search\SearchProviderInterface>>
+     */
+    public function searchProviders(): array
+    {
+        return [CustomSkillSearchProvider::class];
     }
 
     /**
