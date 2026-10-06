@@ -16,16 +16,17 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # `main` is the only ref carrying both halves this plugin needs —
-  # `Spora\Skills\SkillProviderInterface` and `SkillCatalogPresenter` are in no
-  # tag and on no other branch. composer.json therefore still resolves spora-core
-  # through a `path` repository with a pinned version; the repository entry and this
-  # var both go when core tags the release carrying the seam.
+  # `main` is the only ref carrying all three halves this plugin needs —
+  # `Spora\Skills\SkillProviderInterface`, `SkillCatalogPresenter` and
+  # `Spora\Search\SearchProviderInterface` are in no tag and on no other branch.
+  # composer.json therefore still resolves spora-core through a `path` repository
+  # with a pinned version; the repository entry and this var both go when core
+  # tags the release carrying the seam.
   #
-  # Tracking main means CI goes red when 0.30.0 drops `$userId` from
-  # `ToolInterface::execute()`, because the plugin still declares all five
-  # parameters. That red is the signal for the phase-2a change, not a reason to
-  # pin a ref.
+  # Tracking main means CI goes red when core drops `$userId` from
+  # `ToolInterface::execute()`, because the plugin declares the four-parameter
+  # signature only. That red is the signal for the phase-2a change, not a reason
+  # to pin a ref.
   #
   # `path:` is workspace-relative, so the core checkout lands inside this
   # workspace while composer.json declares `../spora-core`, a sibling — hence the
