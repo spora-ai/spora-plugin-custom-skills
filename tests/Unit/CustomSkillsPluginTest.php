@@ -21,6 +21,7 @@ use Spora\Plugins\CustomSkills\CustomSkillsPlugin;
 use Spora\Plugins\CustomSkills\Http\CustomSkillController;
 use Spora\Plugins\CustomSkills\Http\CustomSkillResource;
 use Spora\Plugins\CustomSkills\Providers\CustomSkillProvider;
+use Spora\Plugins\CustomSkills\Providers\CustomSkillSearchProvider;
 use Spora\Plugins\CustomSkills\Services\AllowedSkillsScrubber;
 use Spora\Plugins\CustomSkills\Services\AllowedSkillsScrubberInterface;
 use Spora\Plugins\CustomSkills\Services\CustomSkillQuery;
@@ -30,6 +31,7 @@ use Spora\Plugins\CustomSkills\Services\CustomSkillWriterInterface;
 use Spora\Plugins\CustomSkills\Services\SkillComposer;
 use Spora\Plugins\CustomSkills\Tools\ManageSkillTool;
 use Spora\Plugins\Exceptions\PluginLoadFailedException;
+use Spora\Search\SearchProviderInterface;
 use Spora\Services\PrincipalResolver;
 use Spora\Services\PrincipalService;
 use Spora\Services\ToolConfigService;
@@ -262,6 +264,18 @@ it('contributes exactly the custom-skill provider, which is a real SkillProvider
     expect($providers)->toBe([CustomSkillProvider::class])
         ->and(class_exists(CustomSkillProvider::class))->toBeTrue()
         ->and(implementsContract(CustomSkillProvider::class, SkillProviderInterface::class))->toBeTrue();
+});
+
+it('contributes exactly the palette search provider, which is a real SearchProviderInterface', function (): void {
+    // Core ships no skill search provider, so this claim on the `skill` bucket is
+    // uncontested. Two providers on one type would let the host's dedup drop a
+    // section, so the list is asserted exactly rather than by membership.
+    $providers = (new CustomSkillsPlugin())->searchProviders();
+
+    expect($providers)->toBe([CustomSkillSearchProvider::class])
+        ->and(class_exists(CustomSkillSearchProvider::class))->toBeTrue()
+        ->and(implementsContract(CustomSkillSearchProvider::class, SearchProviderInterface::class))->toBeTrue()
+        ->and((new CustomSkillSearchProvider(new SkillProviderRegistry()))->type())->toBe('skill');
 });
 
 it('contributes the manage_skill tool and the custom-skills admin app', function (): void {
