@@ -69,22 +69,7 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
                     continue;
                 }
 
-                // A shipped skill resolves to the same summary for every
-                // principal, because the filesystem provider ignores the
-                // principal. Without this the loop spends a `MAX_HITS` slot on
-                // each duplicate. Keyed the same way `SkillController::index()`
-                // keys its own loop, so the two endpoints cannot disagree about
-                // what exists.
-                //
-                // An OWNED skill is keyed with its principal too, which is not
-                // just tidiness: `unique(principal_id, name)` permits the same
-                // name under two principals, so those are two distinct skills
-                // at two distinct hrefs. Folding them would drop one from the
-                // palette entirely — before the principal reached the href the
-                // duplicates were byte-identical and folding them cost nothing.
-                $key = $summary->source . '::'
-                    . ($summary->source === CustomSkillProvider::SOURCE ? $principalId . '::' : '')
-                    . $summary->name;
+                $key = $this->dedupeKey($summary, $principalId);
                 if (isset($seen[$key])) {
                     continue;
                 }
@@ -107,6 +92,29 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
         );
 
         return array_slice(array_column($scored, 2), 0, self::MAX_HITS);
+    }
+
+    /**
+     * The key `search()` folds duplicates on.
+     *
+     * A shipped or foreign summary stands for every principal, because those
+     * providers ignore the principal — so the name alone folds them, and each
+     * duplicate would otherwise spend a `MAX_HITS` slot. Keyed the way
+     * `SkillController::index()` keys its own loop, so the two endpoints cannot
+     * disagree about what exists.
+     *
+     * An OWNED summary is keyed with its principal as well, which is not mere
+     * tidiness: `unique(principal_id, name)` permits one name under two
+     * principals, so those are two distinct skills at two distinct hrefs and
+     * folding them drops one from the palette entirely. Before the principal
+     * reached the href the two were byte-identical, which is why folding them
+     * used to cost nothing.
+     */
+    private function dedupeKey(SkillSummary $summary, int $principalId): string
+    {
+        $owned = $summary->source === CustomSkillProvider::SOURCE;
+
+        return $summary->source . '::' . ($owned ? $principalId . '::' : '') . $summary->name;
     }
 
     /**
