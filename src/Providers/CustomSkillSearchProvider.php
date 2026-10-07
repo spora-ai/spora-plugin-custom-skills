@@ -143,17 +143,15 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
      * **The principal is in the path, on both branches.** A skill belongs to exactly
      * one principal (`unique(principal_id, name)`), so a href naming only a skill
      * cannot say whose it is — and the panel resolves an absent principal to the
-     * *caller's own* rather than refusing. That silent default is what made a
-     * group's skill arrive as an unopenable "No skill named … on this principal": the
-     * hit was real, the link was not wrong-looking, and the read behind it went to
-     * the wrong scope. `$principalId` is the principal whose `getSkills()` produced
-     * this summary, so for an owned skill it is the owner.
+     * *caller's own* rather than refusing. That silent default is what made a group's
+     * skill arrive as an unopenable "No skill named … on this principal". `$principalId`
+     * is the principal whose `getSkills()` produced this summary, so for an owned skill
+     * it is the owner.
      *
-     * It rides on the `library` branch too, where it is the *acting* scope rather
-     * than the owner: a shipped skill belongs to no principal, but the panel's
-     * Duplicate writes a copy onto whatever principal is selected, so a viewer link
-     * that dropped it would fork onto whichever principal the next reload defaulted
-     * to.
+     * On the `library` branch it is the *acting* scope rather than the owner: a shipped
+     * skill belongs to no principal, but the panel's Duplicate writes a copy onto the
+     * selected one, so a viewer link that dropped it would fork onto whichever principal
+     * the next reload defaulted to.
      *
      * Path segments rather than a query parameter, which is what core's provider
      * emitted first: browser back/forward, a hard refresh and a pasted link all

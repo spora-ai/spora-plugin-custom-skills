@@ -228,11 +228,8 @@ it('routes a skill this plugin owns to the writable desk, naming the principal',
 });
 
 it('names the principal that owns the skill, not merely one the caller can see', function (): void {
-    // The reported bug. A skill belongs to exactly one principal
-    // (`unique(principal_id, name)`), and the panel resolves a link that names no
-    // principal to the *caller's own* rather than refusing — so a group-owned skill
-    // reached through a principal-less href was read against the wrong scope and came
-    // back as "No skill named … on this principal". Two principals, two owners.
+    // Pins that each hit carries *its own* principal, not the first one seen. The
+    // rationale for the `/p/{id}` segment is in `CustomSkillSearchProvider::hrefFor()`.
     $provider = searchProvider([
         searchSkills(CustomSkillProvider::SOURCE, SEARCH_OWNER, [['mine', 'Personal.']]),
         searchSkills(CustomSkillProvider::SOURCE, 4243, [['theirs', 'A group\'s.']]),
@@ -253,10 +250,8 @@ it('routes a shipped skill to the catalogue viewer instead of returning no href'
         searchSkills('filesystem', SEARCH_OWNER, [['typst', 'Typeset documents.']]),
     ]);
 
-    // The principal rides along here as the *acting* scope rather than the owner: a
-    // shipped skill belongs to no principal, but the panel's Duplicate writes a copy
-    // onto the selected one, so a viewer link that dropped it would fork onto
-    // whichever principal the next reload happened to default to.
+    // The principal rides along as the *acting* scope rather than the owner — Duplicate
+    // writes the copy onto it. See `CustomSkillSearchProvider::hrefFor()`.
     expect($provider->search('typst', new SearchContext([SEARCH_OWNER]))[0]->href)
         ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/typst');
 });
