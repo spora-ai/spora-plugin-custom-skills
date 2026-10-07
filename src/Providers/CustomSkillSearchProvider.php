@@ -87,7 +87,7 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
                     label: $summary->name,
                     subLabel: $summary->description,
                     badge: $summary->hasWarnings ? '1 warning' : null,
-                    href: $this->hrefFor($summary),
+                    href: $this->hrefFor($summary, $principalId),
                 )];
             }
         }
@@ -140,16 +140,33 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
      * it there, which keeps this a prefix map with no lookup to await; the frontend
      * parses the two prefixes itself, as the host router registers no child route.
      *
+     * **The principal is in the path, on both branches.** A skill belongs to exactly
+     * one principal (`unique(principal_id, name)`), so a href naming only a skill
+     * cannot say whose it is — and the panel resolves an absent principal to the
+     * *caller's own* rather than refusing. That silent default is what made a
+     * group's skill arrive as an unopenable "No skill named … on this principal": the
+     * hit was real, the link was not wrong-looking, and the read behind it went to
+     * the wrong scope. `$principalId` is the principal whose `getSkills()` produced
+     * this summary, so for an owned skill it is the owner.
+     *
+     * It rides on the `library` branch too, where it is the *acting* scope rather
+     * than the owner: a shipped skill belongs to no principal, but the panel's
+     * Duplicate writes a copy onto whatever principal is selected, so a viewer link
+     * that dropped it would fork onto whichever principal the next reload defaulted
+     * to.
+     *
      * Path segments rather than a query parameter, which is what core's provider
      * emitted first: browser back/forward, a hard refresh and a pasted link all
      * carry a path and none of them carry a query parameter on an app route.
      * `rawurlencode` because a skill name is user-supplied and a name containing
      * `/` or a space would otherwise forge a different path.
      */
-    private function hrefFor(SkillSummary $summary): string
+    private function hrefFor(SkillSummary $summary, int $principalId): string
     {
         $route = $summary->source === CustomSkillProvider::SOURCE ? 'skill' : 'library';
 
-        return '/apps/' . rawurlencode($this->appSlug) . '/' . $route . '/' . rawurlencode($summary->name);
+        return '/apps/' . rawurlencode($this->appSlug)
+            . '/p/' . $principalId
+            . '/' . $route . '/' . rawurlencode($summary->name);
     }
 }

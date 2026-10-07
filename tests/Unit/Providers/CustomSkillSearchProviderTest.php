@@ -218,13 +218,30 @@ it('returns nothing for an empty query rather than every skill', function (): vo
         ->and($provider->search('   ', new SearchContext([SEARCH_OWNER])))->toBe([]);
 });
 
-it('routes a skill this plugin owns to the writable desk', function (): void {
+it('routes a skill this plugin owns to the writable desk, naming the principal', function (): void {
     $provider = searchProvider([
         searchSkills(CustomSkillProvider::SOURCE, SEARCH_OWNER, [['invoice-drafting']]),
     ]);
 
     expect($provider->search('invoice', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/custom-skills/skill/invoice-drafting');
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/skill/invoice-drafting');
+});
+
+it('names the principal that owns the skill, not merely one the caller can see', function (): void {
+    // The reported bug. A skill belongs to exactly one principal
+    // (`unique(principal_id, name)`), and the panel resolves a link that names no
+    // principal to the *caller's own* rather than refusing — so a group-owned skill
+    // reached through a principal-less href was read against the wrong scope and came
+    // back as "No skill named … on this principal". Two principals, two owners.
+    $provider = searchProvider([
+        searchSkills(CustomSkillProvider::SOURCE, SEARCH_OWNER, [['mine', 'Personal.']]),
+        searchSkills(CustomSkillProvider::SOURCE, 4243, [['theirs', 'A group\'s.']]),
+    ]);
+
+    expect($provider->search('mine', new SearchContext([SEARCH_OWNER, 4243]))[0]->href)
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/skill/mine');
+    expect($provider->search('theirs', new SearchContext([SEARCH_OWNER, 4243]))[0]->href)
+        ->toBe('/apps/custom-skills/p/4243/skill/theirs');
 });
 
 it('routes a shipped skill to the catalogue viewer instead of returning no href', function (): void {
@@ -236,8 +253,12 @@ it('routes a shipped skill to the catalogue viewer instead of returning no href'
         searchSkills('filesystem', SEARCH_OWNER, [['typst', 'Typeset documents.']]),
     ]);
 
+    // The principal rides along here as the *acting* scope rather than the owner: a
+    // shipped skill belongs to no principal, but the panel's Duplicate writes a copy
+    // onto the selected one, so a viewer link that dropped it would fork onto
+    // whichever principal the next reload happened to default to.
     expect($provider->search('typst', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/custom-skills/library/typst');
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/typst');
 });
 
 it('routes another plugin\'s skill to the catalogue viewer too', function (): void {
@@ -249,7 +270,7 @@ it('routes another plugin\'s skill to the catalogue viewer too', function (): vo
     ]);
 
     expect($provider->search('quarterly', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/custom-skills/library/quarterly-planning');
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/quarterly-planning');
 });
 
 it('routes a summary carrying no source, rather than handing out no href', function (): void {
@@ -261,7 +282,7 @@ it('routes a summary carrying no source, rather than handing out no href', funct
     $provider = searchProvider([$orphan]);
 
     expect($provider->search('sourceless', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/custom-skills/library/sourceless');
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/sourceless');
 });
 
 it('reads the app slug off the app, so a rename cannot strand the links', function (): void {
@@ -270,7 +291,7 @@ it('reads the app slug off the app, so a rename cannot strand the links', functi
     ]);
 
     expect($provider->search('invoice', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/' . (new CustomSkillsApp())->name() . '/skill/invoice-drafting');
+        ->toBe('/apps/' . (new CustomSkillsApp())->name() . '/p/' . SEARCH_OWNER . '/skill/invoice-drafting');
 });
 
 it('encodes a name that would otherwise forge a path', function (): void {
@@ -283,8 +304,8 @@ it('encodes a name that would otherwise forge a path', function (): void {
 
     expect($hits)->toHaveCount(2)
         // A slash in a name segment would address a different resource entirely.
-        ->and($hits[0]->href)->toBe('/apps/custom-skills/library/a%2Fb')
-        ->and($hits[1]->href)->toBe('/apps/custom-skills/skill/invoice%20drafting');
+        ->and($hits[0]->href)->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/a%2Fb')
+        ->and($hits[1]->href)->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/skill/invoice%20drafting');
 });
 
 it('surfaces a warning as a badge', function (): void {
