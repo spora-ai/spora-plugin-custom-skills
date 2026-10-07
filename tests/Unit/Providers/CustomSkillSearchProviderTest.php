@@ -115,6 +115,9 @@ function searchIds(CustomSkillSearchProvider $provider, string $query, SearchCon
 const SEARCH_OWNER = 4242;
 const SEARCH_STRANGER = 9999;
 
+/** A second principal the caller can see, so its skills are reachable but not theirs. */
+const SEARCH_GROUP = 4243;
+
 it('claims the skill palette bucket', function (): void {
     // Core's provider is gone, so this is the only `skill` type — a collision would
     // make the host drop one of the two providers' sections by dedup.
@@ -232,13 +235,47 @@ it('names the principal that owns the skill, not merely one the caller can see',
     // rationale for the `/p/{id}` segment is in `CustomSkillSearchProvider::hrefFor()`.
     $provider = searchProvider([
         searchSkills(CustomSkillProvider::SOURCE, SEARCH_OWNER, [['mine', 'Personal.']]),
-        searchSkills(CustomSkillProvider::SOURCE, 4243, [['theirs', 'A group\'s.']]),
+        searchSkills(CustomSkillProvider::SOURCE, SEARCH_GROUP, [['theirs', 'A group\'s.']]),
     ]);
 
-    expect($provider->search('mine', new SearchContext([SEARCH_OWNER, 4243]))[0]->href)
+    expect($provider->search('mine', new SearchContext([SEARCH_OWNER, SEARCH_GROUP]))[0]->href)
         ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/skill/mine');
-    expect($provider->search('theirs', new SearchContext([SEARCH_OWNER, 4243]))[0]->href)
-        ->toBe('/apps/custom-skills/p/4243/skill/theirs');
+    expect($provider->search('theirs', new SearchContext([SEARCH_OWNER, SEARCH_GROUP]))[0]->href)
+        ->toBe('/apps/custom-skills/p/' . SEARCH_GROUP . '/skill/theirs');
+});
+
+it('keeps both copies when two principals own a skill of the same name', function (): void {
+    // `unique(principal_id, name)` is a constraint on the PAIR, so this is legal
+    // data, not a contrived one — and the two are distinct resources at distinct
+    // hrefs. The dedupe fold exists for principal-agnostic providers (a shipped
+    // skill resolves identically for every principal); applying it to owned
+    // skills silently dropped the second from the palette.
+    $provider = searchProvider([
+        searchSkills(CustomSkillProvider::SOURCE, SEARCH_OWNER, [['report', 'Mine.']]),
+        searchSkills(CustomSkillProvider::SOURCE, SEARCH_GROUP, [['report', 'Theirs.']]),
+    ]);
+
+    $hits = $provider->search('report', new SearchContext([SEARCH_OWNER, SEARCH_GROUP]));
+
+    expect(array_map(static fn($hit) => $hit->href, $hits))
+        ->toBe([
+            '/apps/custom-skills/p/' . SEARCH_OWNER . '/skill/report',
+            '/apps/custom-skills/p/' . SEARCH_GROUP . '/skill/report',
+        ]);
+});
+
+it('still folds a shipped skill that resolves for every principal', function (): void {
+    // The fold the case above stopped over-applying: a `filesystem` provider
+    // ignores the principal entirely, so one row per visible principal would be
+    // a duplicate that also spends a `MAX_HITS` slot.
+    $provider = searchProvider([
+        searchSkills('filesystem', SEARCH_OWNER, [['typst', 'Typeset.']]),
+    ]);
+
+    $hits = $provider->search('typst', new SearchContext([SEARCH_OWNER, SEARCH_GROUP]));
+
+    expect($hits)->toHaveCount(1)
+        ->and($hits[0]->href)->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/typst');
 });
 
 it('routes a shipped skill to the catalogue viewer instead of returning no href', function (): void {

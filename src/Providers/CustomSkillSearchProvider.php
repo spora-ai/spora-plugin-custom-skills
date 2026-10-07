@@ -69,13 +69,22 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
                     continue;
                 }
 
-                // A shipped skill resolves to the same summary for every principal,
-                // because the filesystem provider ignores the principal. Without this
-                // the loop emits one identical hit per visible principal, and each
-                // duplicate also spends a slot of `MAX_HITS`. Keyed `source::name`,
-                // the same key `SkillController::index()` keys its own loop, so the
-                // two endpoints cannot disagree about what exists.
-                $key = $summary->source . '::' . $summary->name;
+                // A shipped skill resolves to the same summary for every
+                // principal, because the filesystem provider ignores the
+                // principal. Without this the loop spends a `MAX_HITS` slot on
+                // each duplicate. Keyed the same way `SkillController::index()`
+                // keys its own loop, so the two endpoints cannot disagree about
+                // what exists.
+                //
+                // An OWNED skill is keyed with its principal too, which is not
+                // just tidiness: `unique(principal_id, name)` permits the same
+                // name under two principals, so those are two distinct skills
+                // at two distinct hrefs. Folding them would drop one from the
+                // palette entirely — before the principal reached the href the
+                // duplicates were byte-identical and folding them cost nothing.
+                $key = $summary->source . '::'
+                    . ($summary->source === CustomSkillProvider::SOURCE ? $principalId . '::' : '')
+                    . $summary->name;
                 if (isset($seen[$key])) {
                     continue;
                 }
@@ -140,18 +149,23 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
      * it there, which keeps this a prefix map with no lookup to await; the frontend
      * parses the two prefixes itself, as the host router registers no child route.
      *
-     * **The principal is in the path, on both branches.** A skill belongs to exactly
-     * one principal (`unique(principal_id, name)`), so a href naming only a skill
-     * cannot say whose it is — and the panel resolves an absent principal to the
-     * *caller's own* rather than refusing. That silent default is what made a group's
-     * skill arrive as an unopenable "No skill named … on this principal". `$principalId`
-     * is the principal whose `getSkills()` produced this summary, so for an owned skill
-     * it is the owner.
+     * **The principal is in the path, on both branches, and means something different
+     * on each.** On the own-skill branch it is the owner — the principal whose
+     * `getSkills()` produced this summary — and it is load-bearing rather than
+     * decorative: `unique(principal_id, name)` constrains the *pair*, so it permits
+     * one name under two principals, and a href naming only a skill therefore cannot
+     * say whose it is. The panel resolves an absent principal to the *caller's own*
+     * rather than refusing, and that silent default is what made a group's skill
+     * arrive as an unopenable "No skill named … on this principal".
      *
-     * On the `library` branch it is the *acting* scope rather than the owner: a shipped
-     * skill belongs to no principal, but the panel's Duplicate writes a copy onto the
-     * selected one, so a viewer link that dropped it would fork onto whichever principal
-     * the next reload defaulted to.
+     * On the `library` branch it is neither an owner (a shipped skill belongs to no
+     * principal) nor the panel's current scope. Shipped providers ignore the
+     * principal and `search()` folds them on `source::name`, so the id reaching here
+     * is whichever visible principal came first in `SearchContext` —
+     * `PrincipalResolver::visiblePrincipalIds()` puts the caller's own user-principal
+     * there. Following such a link therefore *selects* that principal. It is a stable
+     * scope to hand a Duplicate to, but it is this provider's decision, not a reading
+     * of whatever the operator was last looking at.
      *
      * Path segments rather than a query parameter, which is what core's provider
      * emitted first: browser back/forward, a hard refresh and a pasted link all
