@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fcdd5d79b3e88cac931078b9656743d0",
+    "content-hash": "2423e51be0ae59dc5c136455f5c2a95e",
     "packages": [
         {
             "name": "brick/math",
@@ -3145,16 +3145,16 @@
         },
         {
             "name": "spora-ai/spora-plugin-custom-skills-frontend",
-            "version": "v0.1.0",
+            "version": "v0.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spora-ai/spora-plugin-custom-skills-frontend.git",
-                "reference": "6440f77477c2921793763c9915f61631a42bdd5b"
+                "reference": "2ea1b228898031c8f71f8b4b8b9526963c6acd00"
             },
             "dist": {
                 "type": "tar",
-                "url": "https://github.com/spora-ai/spora-plugin-custom-skills-frontend/releases/download/v0.1.0/spora-plugin-custom-skills-frontend-v0.1.0.tar.gz",
-                "reference": "6440f77477c2921793763c9915f61631a42bdd5b"
+                "url": "https://github.com/spora-ai/spora-plugin-custom-skills-frontend/releases/download/v0.3.0/spora-plugin-custom-skills-frontend-v0.3.0.tar.gz",
+                "reference": "2ea1b228898031c8f71f8b4b8b9526963c6acd00"
             },
             "require": {
                 "php": "^8.4.1"
@@ -3194,10 +3194,10 @@
             ],
             "description": "Pre-built Vue SPA for the Spora custom-skills admin panel. Delivered as type `spora-plugin-frontend`; the host SPA lazy-loads it via /plugins/custom-skills/main.js.",
             "support": {
-                "source": "https://github.com/spora-ai/spora-plugin-custom-skills-frontend/tree/v0.1.0",
+                "source": "https://github.com/spora-ai/spora-plugin-custom-skills-frontend/tree/v0.3.0",
                 "issues": "https://github.com/spora-ai/spora-plugin-custom-skills-frontend/issues"
             },
-            "time": "2026-09-30T20:12:26+00:00"
+            "time": "2026-10-07T18:29:37+00:00"
         },
         {
             "name": "symfony/clock",
