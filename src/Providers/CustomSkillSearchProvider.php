@@ -12,13 +12,12 @@ use Spora\Skills\SkillProviderRegistry;
 use Spora\Skills\SkillSummary;
 
 /**
- * The skill section of the host palette. It lives here rather than in core because a hit needs somewhere
- * to open: core built its href from the skill's own `source`, so every skill core ships — `filesystem`
- * registers no app — was a hit the palette could not open. Scope is structural, too.
+ * The skill section of the host palette. Here rather than in core because a hit needs somewhere to
+ * open: core built its href from the skill's `source`, so every `filesystem` skill — which registers no
+ * app — was a hit the palette could not open.
  */
 final readonly class CustomSkillSearchProvider implements SearchProviderInterface
 {
-    /** The palette shows a bounded list; a skill install is not a document set. */
     private const MAX_HITS = 20;
 
     private string $appSlug;
@@ -83,13 +82,10 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
     }
 
     /**
-     * The key `search()` folds duplicates on.
-     *
-     * A shipped or foreign summary stands for every principal — those providers ignore the principal, so
-     * the name alone folds them, each duplicate otherwise spending a `MAX_HITS` slot. Keyed as
-     * `SkillController::index()` keys its loop, so the endpoints cannot disagree. An OWNED summary is
-     * keyed with its principal too, not out of tidiness: `unique(principal_id, name)` permits one name
-     * under two principals — two skills, two hrefs, folding drops one.
+     * The key `search()` folds duplicates on. Shipped and foreign providers ignore the principal, so
+     * the name alone folds them — otherwise each duplicate spends a `MAX_HITS` slot. An OWNED summary
+     * is keyed with its principal too: `unique(principal_id, name)` permits one name under two
+     * principals, and folding those drops one of the two from the palette entirely.
      */
     private function dedupeKey(SkillSummary $summary, int $principalId): string
     {
@@ -99,8 +95,8 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
     }
 
     /**
-     * Lower is better; null means no match. The tiers run best-to-worst and the first match wins, so the
-     * order here *is* the ranking — without the split any descriptive word outranks the typed skill.
+     * Lower is better; null means no match. The `$tiers` order *is* the ranking — without the
+     * name-before-prose split, any descriptive word outranks the skill actually typed.
      */
     private function rank(string $name, string $description, string $needle): ?int
     {
@@ -124,20 +120,15 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
     }
 
     /**
-     * Route for a skill. Never null — both branches are pages this app has. The branch is on ownership:
-     * an owned skill opens on the writable desk; anything else is read-only, and the desk would render it
-     * under a scope bar for a principal it lacks.
+     * Never null — both branches are pages this app has, chosen on ownership: an owned skill opens on
+     * the writable desk, anything else is read-only content the desk would render under a scope bar for
+     * a principal it lacks. `rawurlencode`: a `/` or space in a name forges a different path.
      *
-     * **The principal means something different on each branch.** On the own-skill branch it is the OWNER
-     * — the principal whose `getSkills()` produced this summary — and it is load-bearing:
-     * `unique(principal_id, name)` constrains the *pair*, so a href naming only a skill cannot say whose it
-     * is, and the panel resolves an absent principal to the *caller's own*.
-     *
-     * On the `library` branch it is neither an owner nor the panel's scope: shipped providers ignore the
-     * principal and `search()` folds them on `source::name`, so the id here is the FIRST principal in
-     * `SearchContext`, which `PrincipalResolver::visiblePrincipalIds()` puts as the caller's own user-
-     * principal — following such a link *selects* it, a stable scope for a Duplicate but this
-     * provider's decision, not the operator's last page. `rawurlencode`: `/` or a space forges a path.
+     * The principal differs per branch. Own-skill: the OWNER, load-bearing because
+     * `unique(principal_id, name)` permits one name under two principals and the panel resolves a
+     * principal-less URL to the caller's own. Library: neither owner nor the operator's current scope,
+     * but the FIRST id in `SearchContext` — which `PrincipalResolver::visiblePrincipalIds()` puts as the
+     * caller's own user-principal — so following the link *selects* it.
      */
     private function hrefFor(SkillSummary $summary, int $principalId): string
     {
