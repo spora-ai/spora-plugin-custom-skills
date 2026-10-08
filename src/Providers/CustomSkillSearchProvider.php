@@ -12,32 +12,19 @@ use Spora\Skills\SkillProviderRegistry;
 use Spora\Skills\SkillSummary;
 
 /**
- * The skill section of the host palette.
- *
- * It lives here rather than in core because a hit needs somewhere to open. Core has no
- * skills page, so its provider could only ever build a link into a plugin's app — and it
- * built that link from the skill's own `source`, which meant no href at all for every
- * skill core itself ships, since `filesystem` registers no app. This app has both
- * surfaces, a writable desk and a read-only catalogue viewer, so every hit it returns
- * is openable.
- *
- * Reads through {@see SkillProviderRegistry} rather than querying skills directly, so
- * shipped and custom skills appear in one list with no work from the other providers.
- * Scope is structural: it iterates {@see SearchContext::principalIds()} and nothing
- * else, so no branch here can be edited into widening.
+ * The skill section of the host palette. Here rather than in core because a hit needs somewhere to
+ * open: core built its href from the skill's `source`, so every `filesystem` skill — which registers no
+ * app — was a hit the palette could not open.
  */
 final readonly class CustomSkillSearchProvider implements SearchProviderInterface
 {
-    /** The palette shows a bounded list; a skill install is not a document set. */
     private const MAX_HITS = 20;
 
     private string $appSlug;
 
     public function __construct(private SkillProviderRegistry $skills)
     {
-        // Read from the app rather than repeated as a literal: the host resolves
-        // `/apps/<name>` from `CustomSkillsApp::name()`, so a second copy of the
-        // slug here is a link that 404s the day the app is renamed.
+        // Read from the app rather than repeated: a copied slug 404s on rename.
         $this->appSlug = (new CustomSkillsApp())->name();
     }
 
@@ -69,13 +56,7 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
                     continue;
                 }
 
-                // A shipped skill resolves to the same summary for every principal,
-                // because the filesystem provider ignores the principal. Without this
-                // the loop emits one identical hit per visible principal, and each
-                // duplicate also spends a slot of `MAX_HITS`. Keyed `source::name`,
-                // the same key `SkillController::index()` keys its own loop, so the
-                // two endpoints cannot disagree about what exists.
-                $key = $summary->source . '::' . $summary->name;
+                $key = $this->dedupeKey($summary, $principalId);
                 if (isset($seen[$key])) {
                     continue;
                 }
@@ -87,7 +68,7 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
                     label: $summary->name,
                     subLabel: $summary->description,
                     badge: $summary->hasWarnings ? '1 warning' : null,
-                    href: $this->hrefFor($summary),
+                    href: $this->hrefFor($summary, $principalId),
                 )];
             }
         }
@@ -101,12 +82,21 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
     }
 
     /**
-     * Lower is better; null means no match.
-     *
-     * The tiers are ordered best-to-worst and the first match wins, so the order
-     * here *is* the ranking. Name matches outrank description matches because
-     * prose is weak evidence: without the split every descriptive word outranks
-     * the one skill actually typed.
+     * The key `search()` folds duplicates on. Shipped and foreign providers ignore the principal, so
+     * the name alone folds them — otherwise each duplicate spends a `MAX_HITS` slot. An OWNED summary
+     * is keyed with its principal too: `unique(principal_id, name)` permits one name under two
+     * principals, and folding those drops one of the two from the palette entirely.
+     */
+    private function dedupeKey(SkillSummary $summary, int $principalId): string
+    {
+        $owned = $summary->source === CustomSkillProvider::SOURCE;
+
+        return $summary->source . '::' . ($owned ? $principalId . '::' : '') . $summary->name;
+    }
+
+    /**
+     * Lower is better; null means no match. The `$tiers` order *is* the ranking — without the
+     * name-before-prose split, any descriptive word outranks the skill actually typed.
      */
     private function rank(string $name, string $description, string $needle): ?int
     {
@@ -130,26 +120,22 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
     }
 
     /**
-     * Route for a skill. Never null — both branches are pages this app actually has.
+     * Never null — both branches are pages this app has, chosen on ownership: an owned skill opens on
+     * the writable desk, anything else is read-only content the desk would render under a scope bar for
+     * a principal it lacks. `rawurlencode`: a `/` or space in a name forges a different path.
      *
-     * The branch is on ownership, not on the skill's source being ours to guess: a
-     * skill this plugin owns is principal-scoped and writable, so it opens on the
-     * desk; anything else — a shipped `filesystem` skill, or another plugin's — is
-     * read-only content, and the desk would render it under a scope bar announcing
-     * a principal it does not have. The kind is in the path because the host names
-     * it there, which keeps this a prefix map with no lookup to await; the frontend
-     * parses the two prefixes itself, as the host router registers no child route.
-     *
-     * Path segments rather than a query parameter, which is what core's provider
-     * emitted first: browser back/forward, a hard refresh and a pasted link all
-     * carry a path and none of them carry a query parameter on an app route.
-     * `rawurlencode` because a skill name is user-supplied and a name containing
-     * `/` or a space would otherwise forge a different path.
+     * The principal differs per branch. Own-skill: the OWNER, load-bearing because
+     * `unique(principal_id, name)` permits one name under two principals and the panel resolves a
+     * principal-less URL to the caller's own. Library: neither owner nor the operator's current scope,
+     * but the FIRST id in `SearchContext` — which `PrincipalResolver::visiblePrincipalIds()` puts as the
+     * caller's own user-principal — so following the link *selects* it.
      */
-    private function hrefFor(SkillSummary $summary): string
+    private function hrefFor(SkillSummary $summary, int $principalId): string
     {
         $route = $summary->source === CustomSkillProvider::SOURCE ? 'skill' : 'library';
 
-        return '/apps/' . rawurlencode($this->appSlug) . '/' . $route . '/' . rawurlencode($summary->name);
+        return '/apps/' . rawurlencode($this->appSlug)
+            . '/p/' . $principalId
+            . '/' . $route . '/' . rawurlencode($summary->name);
     }
 }

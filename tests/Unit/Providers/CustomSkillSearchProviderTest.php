@@ -12,20 +12,13 @@ use Spora\Skills\SkillProviderRegistry;
 use Spora\Skills\SkillSummary;
 
 /**
- * The skill section of the palette, and it moved here from core — so the ranking,
- * folding, scoping and dedup of the provider that was deleted are pinned here too.
- * The cross-tenant assertion is the one this file exists for: search asks every
- * visible principal rather than the one a UI happens to have selected, so a scope
- * bug here leaks instead of mislisting.
+ * The skill section of the palette, moved here from core — so its ranking, folding, scoping and dedup are
+ * pinned here too. Why the file exists: search asks every visible principal, not the one a UI has.
  */
 
 /**
- * A provider that answers for one principal, or for every principal at once.
- *
- * `onlyVisibleTo === null` is how core's `FilesystemSkillProvider` behaves: it
- * ignores the principal because operator-authored content is identical for
- * everyone. Stated here rather than with a real filesystem so the dedup is
- * observable from a two-line fixture.
+ * A provider that answers for one principal, or every principal at once. `onlyVisibleTo === null` is how
+ * core's `FilesystemSkillProvider` behaves, so the dedup needs no real filesystem.
  */
 final class SearchStubSkillProvider implements SkillProviderInterface
 {
@@ -36,7 +29,6 @@ final class SearchStubSkillProvider implements SkillProviderInterface
 
     public function __construct(private readonly string $source) {}
 
-    /** A skill with this provider's `source` on its summary, unless asked to omit it. */
     public function add(
         string $name,
         ?string $description = null,
@@ -89,7 +81,7 @@ final class SearchStubSkillProvider implements SkillProviderInterface
     }
 }
 
-/** @param list<array{0: string}|array{0: string, 1: string}> $skills name + optional description. */
+/** @param list<array{0: string}|array{0: string, 1: string}> $skills name + description. */
 function searchSkills(string $source, ?int $owner, array $skills): SearchStubSkillProvider
 {
     $provider = new SearchStubSkillProvider($source);
@@ -106,7 +98,7 @@ function searchProvider(array $providers): CustomSkillSearchProvider
     return new CustomSkillSearchProvider(new SkillProviderRegistry($providers));
 }
 
-/** @return list<string> The ids of the hits, in the order the palette would show them. */
+/** @return list<string> The hit ids, in palette order. */
 function searchIds(CustomSkillSearchProvider $provider, string $query, SearchContext $context): array
 {
     return array_map(static fn($hit) => $hit->id, $provider->search($query, $context));
@@ -115,9 +107,9 @@ function searchIds(CustomSkillSearchProvider $provider, string $query, SearchCon
 const SEARCH_OWNER = 4242;
 const SEARCH_STRANGER = 9999;
 
+const SEARCH_GROUP = 4243;
+
 it('claims the skill palette bucket', function (): void {
-    // Core's provider is gone, so this is the only `skill` type — a collision would
-    // make the host drop one of the two providers' sections by dedup.
     expect(searchProvider([])->type())->toBe('skill');
 });
 
@@ -143,7 +135,6 @@ it('never returns a skill belonging to a principal the caller cannot see', funct
 
     expect(searchIds($provider, 'team', new SearchContext([SEARCH_OWNER])))->toBe([])
         ->and(searchIds($provider, 'playbook', new SearchContext([SEARCH_OWNER])))->toBe([])
-        // Sanity: the provider is not simply returning nothing at all.
         ->and(searchIds($provider, 'mine', new SearchContext([SEARCH_OWNER])))->toBe(['my-notes']);
 });
 
@@ -157,8 +148,6 @@ it('returns nothing for an empty principal set', function (): void {
 });
 
 it('spans every visible principal, not just one', function (): void {
-    // An operator looks for a skill whether it is theirs or a group's, which is why
-    // the context is a set rather than a nullable id.
     $provider = searchProvider([
         searchSkills(CustomSkillProvider::SOURCE, SEARCH_OWNER, [['mine', 'Personal.']]),
         searchSkills('studio', SEARCH_STRANGER, [['theirs', 'Group.']]),
@@ -170,9 +159,6 @@ it('spans every visible principal, not just one', function (): void {
 });
 
 it('returns one hit per skill when the provider ignores the principal', function (): void {
-    // `FilesystemSkillProvider` answers identically for every principal, so the
-    // per-principal loop sees the same summary N times. `onlyVisibleTo` stays null
-    // here, which is how the stub models that.
     $agnostic = (new SearchStubSkillProvider('filesystem'))->add('typst', 'Typeset documents.');
 
     $provider = searchProvider([$agnostic]);
@@ -218,50 +204,81 @@ it('returns nothing for an empty query rather than every skill', function (): vo
         ->and($provider->search('   ', new SearchContext([SEARCH_OWNER])))->toBe([]);
 });
 
-it('routes a skill this plugin owns to the writable desk', function (): void {
+it('routes a skill this plugin owns to the writable desk, naming the principal', function (): void {
     $provider = searchProvider([
         searchSkills(CustomSkillProvider::SOURCE, SEARCH_OWNER, [['invoice-drafting']]),
     ]);
 
     expect($provider->search('invoice', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/custom-skills/skill/invoice-drafting');
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/skill/invoice-drafting');
+});
+
+it('names the principal that owns the skill, not merely one the caller can see', function (): void {
+    $provider = searchProvider([
+        searchSkills(CustomSkillProvider::SOURCE, SEARCH_OWNER, [['mine', 'Personal.']]),
+        searchSkills(CustomSkillProvider::SOURCE, SEARCH_GROUP, [['theirs', 'A group\'s.']]),
+    ]);
+
+    expect($provider->search('mine', new SearchContext([SEARCH_OWNER, SEARCH_GROUP]))[0]->href)
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/skill/mine');
+    expect($provider->search('theirs', new SearchContext([SEARCH_OWNER, SEARCH_GROUP]))[0]->href)
+        ->toBe('/apps/custom-skills/p/' . SEARCH_GROUP . '/skill/theirs');
+});
+
+it('keeps both copies when two principals own a skill of the same name', function (): void {
+    // `unique(principal_id, name)` constrains the PAIR, so these are two distinct resources; the fold is
+    // for principal-agnostic providers and on owned skills dropped the second.
+    $provider = searchProvider([
+        searchSkills(CustomSkillProvider::SOURCE, SEARCH_OWNER, [['report', 'Mine.']]),
+        searchSkills(CustomSkillProvider::SOURCE, SEARCH_GROUP, [['report', 'Theirs.']]),
+    ]);
+
+    $hits = $provider->search('report', new SearchContext([SEARCH_OWNER, SEARCH_GROUP]));
+
+    expect(array_map(static fn($hit) => $hit->href, $hits))
+        ->toBe([
+            '/apps/custom-skills/p/' . SEARCH_OWNER . '/skill/report',
+            '/apps/custom-skills/p/' . SEARCH_GROUP . '/skill/report',
+        ]);
+});
+
+it('still folds a shipped skill that resolves for every principal', function (): void {
+    $provider = searchProvider([
+        searchSkills('filesystem', SEARCH_OWNER, [['typst', 'Typeset.']]),
+    ]);
+
+    $hits = $provider->search('typst', new SearchContext([SEARCH_OWNER, SEARCH_GROUP]));
+
+    expect($hits)->toHaveCount(1)
+        ->and($hits[0]->href)->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/typst');
 });
 
 it('routes a shipped skill to the catalogue viewer instead of returning no href', function (): void {
-    // The whole reason this provider is here. Core's built href from the skill's own
-    // source and returned null unless an app was registered under it — and AppRegistry
-    // only ever holds plugin apps, so every `filesystem` skill was a hit the palette
-    // could list but not open.
     $provider = searchProvider([
         searchSkills('filesystem', SEARCH_OWNER, [['typst', 'Typeset documents.']]),
     ]);
 
     expect($provider->search('typst', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/custom-skills/library/typst');
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/typst');
 });
 
 it('routes another plugin\'s skill to the catalogue viewer too', function (): void {
-    // Not just `filesystem`: anything this plugin does not own is read-only content,
-    // and the desk would render it under a scope bar for a principal it has no
-    // relationship with.
     $provider = searchProvider([
         searchSkills('spora-plugin-calendar', SEARCH_OWNER, [['quarterly-planning', 'Plan the quarter.']]),
     ]);
 
     expect($provider->search('quarterly', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/custom-skills/library/quarterly-planning');
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/quarterly-planning');
 });
 
 it('routes a summary carrying no source, rather than handing out no href', function (): void {
-    // `SkillSummary::$source` is nullable, and a provider that omits it is not evidence
-    // of ownership — so it lands on the viewer, and still gets a link.
     $orphan = new SearchStubSkillProvider('unlabelled');
     $orphan->add('sourceless', 'No source on the summary.', unlabelled: true);
 
     $provider = searchProvider([$orphan]);
 
     expect($provider->search('sourceless', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/custom-skills/library/sourceless');
+        ->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/sourceless');
 });
 
 it('reads the app slug off the app, so a rename cannot strand the links', function (): void {
@@ -270,7 +287,7 @@ it('reads the app slug off the app, so a rename cannot strand the links', functi
     ]);
 
     expect($provider->search('invoice', new SearchContext([SEARCH_OWNER]))[0]->href)
-        ->toBe('/apps/' . (new CustomSkillsApp())->name() . '/skill/invoice-drafting');
+        ->toBe('/apps/' . (new CustomSkillsApp())->name() . '/p/' . SEARCH_OWNER . '/skill/invoice-drafting');
 });
 
 it('encodes a name that would otherwise forge a path', function (): void {
@@ -282,9 +299,8 @@ it('encodes a name that would otherwise forge a path', function (): void {
     $hits = $provider->search('a', new SearchContext([SEARCH_OWNER]));
 
     expect($hits)->toHaveCount(2)
-        // A slash in a name segment would address a different resource entirely.
-        ->and($hits[0]->href)->toBe('/apps/custom-skills/library/a%2Fb')
-        ->and($hits[1]->href)->toBe('/apps/custom-skills/skill/invoice%20drafting');
+        ->and($hits[0]->href)->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/library/a%2Fb')
+        ->and($hits[1]->href)->toBe('/apps/custom-skills/p/' . SEARCH_OWNER . '/skill/invoice%20drafting');
 });
 
 it('surfaces a warning as a badge', function (): void {
@@ -316,10 +332,6 @@ it('caps the hits it hands the palette', function (): void {
 });
 
 it('resolves from a container that binds nothing of its own', function (): void {
-    // Core merges `searchProviders()` into the palette list and resolves each entry
-    // with `$container->get($class)`, so the class has to build from a real container
-    // carrying only core's own bindings — which is why `onContainerBuilding()` has
-    // no entry for it: the sole argument is core's `SkillProviderRegistry`.
     $builder = new DI\ContainerBuilder();
     $builder->addDefinitions([
         SkillProviderRegistry::class => \DI\factory(static fn(): SkillProviderRegistry
