@@ -178,20 +178,30 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
      *
      * Keys are the English source text — `de.json` reads
      * `{"Manage Skill": "Skill verwalten"}`, not `{"tool": "…"}`. That is
-     * what makes the host's `i18n:check` able to fail when a string is
-     * edited without being re-translated: the key changes and the old
-     * entry orphans.
+     * what makes a copy edit detectable: the key changes and the old entry
+     * orphans. The gate is this plugin's own `LocaleCatalogTest`, not the
+     * host's `i18n:check` — that command harvests core's `app/` and reads
+     * core's `locales/en.json`, so run against a plugin repo it reports
+     * every catalogue key as an orphan.
      *
      * **Only operator copy belongs in here.** A string the model reads is
      * never translated, which for this plugin means `#[Tool].description`,
      * every `#[ToolOperation].description` and `.operatorDescription`,
      * every `#[ToolParameter].description`, every `#[ToolSetting].label`
      * and its `options`, and all `ToolResult` content. `locales/de.json`
-     * holds the `#[Tool].displayName` and the admin app's `displayName()`
-     * and `description()`, and nothing else.
+     * holds the `#[Tool].displayName`, the admin app's `displayName()`
+     * and `description()`, the manifest description and the one approval
+     * prompt, and nothing else.
      *
-     * Requires `spora-core >= 0.31.0` at runtime; older versions fail to
-     * resolve the method when the loader is strict.
+     * The approval prompt is keyed on its `sprintf()` template, not on the
+     * rendered sentence: the host looks the stored, already-rendered
+     * string up and matches it against the catalogue's templates, so
+     * `"Skill delete: %s — …"` is the key. A `{$name}` interpolation has
+     * no template to match and never resolves.
+     *
+     * Requires `spora-core >= 0.31.0` for the catalogue to be loaded. On an
+     * older core the host never calls this hook and the plugin renders in
+     * English.
      *
      * @return string[]
      */

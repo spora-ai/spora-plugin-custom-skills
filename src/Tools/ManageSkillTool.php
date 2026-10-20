@@ -108,7 +108,10 @@ final class ManageSkillTool extends AbstractTool
         $files = is_array($arguments['files'] ?? null) ? count($arguments['files']) : 0;
 
         if ($operation === 'delete') {
-            return "Skill delete: {$name} — also removes it from the allowed_skills of any agent that references it";
+            return sprintf(
+                "Skill delete: %s — also removes it from the allowed_skills of any agent that references it",
+                $name,
+            );
         }
 
         $bytes = strlen((string) ($arguments['body'] ?? ''));
