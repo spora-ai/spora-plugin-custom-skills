@@ -1,5 +1,6 @@
 {
   "Manage Skill": "Skill verwalten",
   "Custom Skills": "Eigene Skills",
-  "Author skills for this principal, or ask an agent to.": "Skills für diesen Principal schreiben oder einen Agenten damit beauftragen."
+  "Author skills for this principal, or ask an agent to.": "Skills für diesen Principal schreiben oder einen Agenten damit beauftragen.",
+  "Skill delete: {$name} — also removes it from the allowed_skills of any agent that references it": "Skill löschen: {$name} — entfernt sie außerdem aus den allowed_skills jedes Agenten, der sie referenziert"
 }
