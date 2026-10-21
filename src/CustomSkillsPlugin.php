@@ -32,9 +32,7 @@ use Spora\Skills\SkillValidator;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Plugin entry point: the admin app, the `manage_skill` write tool (core's `skill` serves
- * the reads), a {@see SkillProviderInterface}, the palette search provider, 9 REST routes,
- * the migrations, the bindings.
+ * Plugin entry point for the custom-skills feature.
  *
  * `skillPaths()` is deliberately not overridden: these skills live in the database and
  * the scan roots have no principal dimension.
@@ -49,7 +47,7 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
         // would load the CRUD routes and the admin panel while no agent could see a
         // skill. `PluginLoader::boot()` has no per-plugin tolerance, so this throw is
         // caught by `Kernel` and skips plugin boot entirely — the whole plugin layer goes
-        // down, not just this one. That is the trade the message states.
+        // down, not just this one.
         if (!interface_exists(SkillProviderInterface::class)) {
             throw new PluginLoadFailedException(
                 'The custom-skills plugin requires a spora-core that ships '
@@ -102,7 +100,7 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
     }
 
     /**
-     * The 9 `/api/v1/custom-skills*` routes, behind Auth + CSRF. Each resolves its own
+     * The `/api/v1/custom-skills*` routes, behind Auth + CSRF. Each resolves its own
      * principal from `?principal_id=`, which replaces a separate group-principal route set.
      */
     public function onRoutesRegistering(RoutesRegisteringEvent $event): void
@@ -131,8 +129,8 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
     }
 
     /**
-     * Skill search moves here from core, which shipped a provider that could only
-     * build a link into a plugin's app and returned `href: null` for every skill core
+     * Skill search lives here rather than in core: core used to ship a provider that could
+     * only build a link into a plugin's app and returned `href: null` for every skill core
      * itself ships. This app has a page for a skill, so every hit is openable.
      *
      * Left out of {@see onContainerBuilding()} on purpose: the class is autowirable —
@@ -173,35 +171,11 @@ final class CustomSkillsPlugin extends AbstractPlugin implements EventSubscriber
     }
 
     /**
-     * Translation catalogues this plugin ships, declared through
-     * {@see \Spora\Plugins\PluginInterface::translationsPaths()}.
+     * The plugin's `locales/` directory — one `<locale>.json` per language, keyed by
+     * the English source string.
      *
-     * Keys are the English source text — `de.json` reads
-     * `{"Manage Skill": "Skill verwalten"}`, not `{"tool": "…"}`. That is
-     * what makes a copy edit detectable: the key changes and the old entry
-     * orphans. The gate is this plugin's own `LocaleCatalogTest`, not the
-     * host's `i18n:check` — that command harvests core's `app/` and reads
-     * core's `locales/en.json`, so run against a plugin repo it reports
-     * every catalogue key as an orphan.
-     *
-     * **Only operator copy belongs in here.** A string the model reads is
-     * never translated, which for this plugin means `#[Tool].description`,
-     * every `#[ToolOperation].description` and `.operatorDescription`,
-     * every `#[ToolParameter].description`, every `#[ToolSetting].label`
-     * and its `options`, and all `ToolResult` content. `locales/de.json`
-     * holds the `#[Tool].displayName`, the admin app's `displayName()`
-     * and `description()`, the manifest description and the one approval
-     * prompt, and nothing else.
-     *
-     * The approval prompt is keyed on its `sprintf()` template, not on the
-     * rendered sentence: the host looks the stored, already-rendered
-     * string up and matches it against the catalogue's templates, so
-     * `"Skill delete: %s — …"` is the key. A `{$name}` interpolation has
-     * no template to match and never resolves.
-     *
-     * Requires `spora-core >= 0.31.0` for the catalogue to be loaded. On an
-     * older core the host never calls this hook and the plugin renders in
-     * English.
+     * The orphan gate is this repository's own `LocaleCatalogTest`; the host's
+     * `i18n:check` reads core's catalogue only.
      *
      * @return string[]
      */

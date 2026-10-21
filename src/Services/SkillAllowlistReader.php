@@ -26,8 +26,8 @@ final class SkillAllowlistReader
 
     /**
      * Which agents resolve `$name` via the skill tool's `allowed_skills`, plus whether the
-     * principal default carries it — the D11 blast radius. `ToolConfigService` is mandatory:
-     * the override accessor throws by design.
+     * principal default carries it — the blast radius of a delete. `ToolConfigService` is
+     * mandatory: the override accessor throws by design.
      *
      * @return list<array{id: int, name: string|null, scope: 'agent'|'principal'}>
      */

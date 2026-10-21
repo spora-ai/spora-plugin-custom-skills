@@ -120,15 +120,17 @@ final readonly class CustomSkillSearchProvider implements SearchProviderInterfac
     }
 
     /**
-     * Never null — both branches are pages this app has, chosen on ownership: an owned skill opens on
-     * the writable desk, anything else is read-only content the desk would render under a scope bar for
-     * a principal it lacks. `rawurlencode`: a `/` or space in a name forges a different path.
+     * Never null — both branches are pages this app has, chosen on ownership: an owned skill
+     * opens on the writable desk, anything else is read-only content the desk would render
+     * under a scope bar for a principal it lacks. `rawurlencode`: a `/` or space in a name
+     * forges a different path.
      *
-     * The principal differs per branch. Own-skill: the OWNER, load-bearing because
-     * `unique(principal_id, name)` permits one name under two principals and the panel resolves a
-     * principal-less URL to the caller's own. Library: neither owner nor the operator's current scope,
-     * but the FIRST id in `SearchContext` — which `PrincipalResolver::visiblePrincipalIds()` puts as the
-     * caller's own user-principal — so following the link *selects* it.
+     * The principal in the href is the one the summary was listed under. For an owned skill
+     * that is the owner — load-bearing, because `unique(principal_id, name)` permits one
+     * name under two principals and the panel resolves a principal-less URL to the caller's
+     * own. For a shipped skill it is the first id in `SearchContext`, which
+     * `PrincipalResolver::visiblePrincipalIds()` puts as the caller's own user-principal,
+     * so following the link *selects* it.
      */
     private function hrefFor(SkillSummary $summary, int $principalId): string
     {
