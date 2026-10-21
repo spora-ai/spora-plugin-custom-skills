@@ -87,6 +87,43 @@ Pre-shipped skills are **not** re-exposed here. They come from the host's `GET /
 
 Note that a leftover custom skill whose provider is gone becomes unresolvable: `allowed_skills` entries pointing at it are reported as `(unavailable: <name>)` in the tool definition rather than silently dropped.
 
+## Translations
+
+This plugin ships a German catalogue at [`locales/de.json`](locales/de.json),
+declared through `translationsPaths()` in `src/CustomSkillsPlugin.php`. The host
+merges it under core's own catalogue, so a German install reads the plugin's
+operator copy in German.
+
+The **key is the English source string**, byte for byte — editing the English
+in the source changes the key, so the old entry stops matching and the new
+English has no entry. The gate is this repository's own
+`tests/Unit/LocaleCatalogTest.php`: it fails on an empty translation, on a
+translation identical to its key, and on a key the source no longer produces.
+
+**Translated**
+
+- the tool's display name — `Manage Skill`
+- the admin app's `displayName()` and `description()`
+- the `plugin.json` description
+- the one approval prompt the tool returns from `describeAction()`
+
+**Never translated** — these strings are read by the model, so the operator
+sees exactly what the model sees:
+
+- `#[Tool].description`
+- `#[ToolOperation].description`
+- `#[ToolParameter].description`
+- every `#[ToolSetting].label` and its option labels, including the labels of
+  settings that carry `exposeToLlm: true`
+
+An approval prompt is translatable only in the `%s` form. The host looks the
+stored, already-rendered sentence up and matches it against the catalogue's
+`%s` / `%d` templates, so the key is the `sprintf()` template —
+`"Skill delete: %s — …"` — and never the rendered text. A `{$name}`
+interpolation has no template to match and never resolves.
+
+See the [plugin author guide → Translations](https://docs.spora-ai.com/develop/plugins/author-guide/translations).
+
 ## Reference
 
 The canonical reference lives on the docs site:

@@ -97,9 +97,9 @@ final class ManageSkillTool extends AbstractTool
      * The approval card and the timeline row. Never the body: 200 KB of markdown does not
      * fit a prompt, so byte counts stand in.
      *
-     * `delete` cannot count the allowlists it will rewrite: only the LLM's arguments reach
-     * here and their principal id is model-supplied, so a count would be a cross-tenant
-     * disclosure. `GET …/{name}/allowlist` carries the radius instead.
+     * `delete` cannot count the allowlists it will rewrite: the host calls this with the
+     * tool arguments only, and the principal they would be read for is not among them.
+     * `GET …/{name}/allowlist` carries the radius instead.
      */
     public function describeAction(array $arguments): string
     {
@@ -108,7 +108,10 @@ final class ManageSkillTool extends AbstractTool
         $files = is_array($arguments['files'] ?? null) ? count($arguments['files']) : 0;
 
         if ($operation === 'delete') {
-            return "Skill delete: {$name} — also removes it from the allowed_skills of any agent that references it";
+            return sprintf(
+                "Skill delete: %s — also removes it from the allowed_skills of any agent that references it",
+                $name,
+            );
         }
 
         $bytes = strlen((string) ($arguments['body'] ?? ''));
@@ -203,8 +206,11 @@ final class ManageSkillTool extends AbstractTool
     }
 
     /**
-     * `$context` when the host resolved one, else the agent's principal. Both sentinels are
-     * rejected: `0`, and a dangling non-zero id that only `<= 0` misses.
+     * `$context` when the host resolved one, else the agent's principal.
+     *
+     * Only the non-positive sentinel is rejected here. The dangling non-zero id — the
+     * agent's own `principal_id` when the principal row is missing — passes through and is
+     * caught by the writer's `assertPrincipal()`.
      */
     private function principalId(int $agentId, ?PrincipalContext $context): int
     {

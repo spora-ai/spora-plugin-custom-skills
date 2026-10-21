@@ -14,13 +14,13 @@ use Spora\Skills\SkillSummary;
 /**
  * Serves database-backed, principal-scoped skills to core's `skill` tool.
  *
- * Every method fails closed on an unresolvable principal: core calls it with `null` on
- * operator-default and strict-mode paths, and `resolveForToolExecute()` can also yield a
- * dangling non-zero id — so the guard is `<= 0` *and* a lookup that misses.
+ * Every method fails closed on an unresolvable principal: core passes `null` when it has
+ * no principal to hand over, and `resolveForToolExecute()` can also yield a dangling
+ * non-zero id — so the guard is `<= 0` *and* a lookup that misses.
  */
 final class CustomSkillProvider implements SkillProviderInterface
 {
-    /** The `source` reported per skill, and the admin app's grouping key. */
+    /** The `source` reported per skill; the search provider routes on it. */
     public const SOURCE = 'custom-skills';
 
     public function __construct(private readonly CustomSkillQueryInterface $query) {}
@@ -133,9 +133,9 @@ final class CustomSkillProvider implements SkillProviderInterface
     /**
      * The `requiredTools` argument, spread, or nothing at all.
      *
-     * `Spora\Skills\AllowedTools` is unreleased and this plugin resolves against
-     * `>=0.29.0`, so an unguarded call is an `Error` on every released core. Guarded
-     * on `class_exists` rather than a version compare: the parser and the two
+     * `Spora\Skills\AllowedTools` is core's parser for the `allowed_tools` grammar, and
+     * an unguarded call on a core that lacks it is an `Error`, not a missing argument.
+     * Guarded on `class_exists` rather than a version compare: the parser and the two
      * parameters it feeds land together.
      *
      * Absent, not locally re-parsed. `allowed_tools` has one grammar, and a core with

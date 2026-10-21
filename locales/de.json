@@ -1,0 +1,7 @@
+{
+  "Manage Skill": "Skill verwalten",
+  "Custom Skills": "Eigene Skills",
+  "Author skills for this principal, or ask an agent to.": "Skills für diesen Principal schreiben oder einen Agenten damit beauftragen.",
+  "Skill delete: %s — also removes it from the allowed_skills of any agent that references it": "Skill löschen: %s — entfernt sie außerdem aus den allowed_skills jedes Agenten, der sie referenziert",
+  "Principal-scoped custom skills. Author skills by hand or ask the agent to, and serve them through core's `skill` tool alongside the shipped ones.": "Eigene Skills im Geltungsbereich des Principals. Skills von Hand verfassen oder den Agenten damit beauftragen und sie über das `skill`-Tool von spora-core neben den mitgelieferten bereitstellen."
+}

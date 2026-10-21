@@ -22,7 +22,7 @@ use Spora\Skills\SkillValidator;
 final class CustomSkillWriter implements CustomSkillWriterInterface
 {
     /**
-     * The persistence allowlist (D19): the host's `SchemaValidator` silently permits
+     * The persistence allowlist: the host's `SchemaValidator` silently permits
      * undeclared keys, so this list is the boundary; {@see CustomSkill::$fillable} is the
      * second layer. `files` is a relation, deliberately absent.
      *
@@ -149,7 +149,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
             throw CustomSkillException::notFound($name);
         }
 
-        // One transaction with the scrub: a skill outliving its allowlist entries is what D11 prevents.
+        // One transaction with the scrub: a skill outliving its allowlist entries is what
+        // the scrub exists to prevent.
         return $this->scrubber->transactionally(function () use ($skill, $name, $principalId, $actorUserId): array {
             $touched = $this->scrubber->scrub($name, $principalId);
 
@@ -300,8 +301,6 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
     }
 
     /**
-     * Trimmed, and bounded before it reaches the column.
-     *
      * @throws CustomSkillException
      */
     private function normalisedDescription(mixed $raw): string
@@ -484,9 +483,8 @@ final class CustomSkillWriter implements CustomSkillWriterInterface
      * previous version" is restoring, which it otherwise cannot.
      *
      * There is exactly one of these. Taking it is what makes `restore()` undoable —
-     * restoring re-snapshots the live state first, so a second restore returns you
-     * where you started — but that makes this a two-state toggle, not a history, and
-     * the label used to read as though it were a deeper one.
+     * restoring re-snapshots the live state first — but that makes this a two-state
+     * toggle, not a history.
      *
      * @return array<string, mixed>
      */

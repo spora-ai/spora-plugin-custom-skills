@@ -19,7 +19,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Principal-scoped CRUD for custom skills.
  *
- * Read and write gate the target principal differently (D10): a custom skill is
+ * Read and write gate the target principal differently: a custom skill is
  * instructions the LLM will follow, so reading a group needs only membership while
  * authoring needs owner/admin — one gate would either let any member rewrite the group's
  * agent behaviour or hide the group's skills from its members.
@@ -97,8 +97,8 @@ final class CustomSkillController
     }
 
     /**
-     * `allowlist` — the D11 blast radius: exactly the rows a delete rewrites, so the dialog
-     * can show the change first.
+     * `allowlist` — the blast radius of a delete: exactly the rows the delete rewrites,
+     * so the dialog can show the change first.
      */
     public function allowlist(Request $request): JsonResponse
     {
