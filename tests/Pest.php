@@ -207,7 +207,7 @@ function makeSkill(
 uses()
     ->beforeEach(function () {
         Spora\Core\Database::resetBootState();
-        $db = new Spora\Core\Database(['db_driver' => 'sqlite', 'db_path' => ':memory:']);
+        $db = new Spora\Core\Database(new Spora\Core\Config(['SPORA_DB_DRIVER' => 'sqlite', 'SPORA_DB_PATH' => ':memory:']));
         $db->boot();
         Capsule::connection()->beginTransaction();
 
